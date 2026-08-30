@@ -55,9 +55,9 @@ export function SheetLayoutSvg({
         </span>
         <span className="mt-1 block font-normal">{layout.caption}</span>
         <span className="mt-1 block text-base font-semibold">
-          Total: {layout.cutTally.clicks} Challenge{" "}
-          {layout.cutTally.clicks === 1 ? "click" : "clicks"}
+          Cut count: {layout.cutTally.clicks}
         </span>
+        <span className="block font-normal">{layout.cutTally.brief}</span>
         <span className="block font-normal">{faceTrimLine(layout)}</span>
         <span className="block font-normal">{splitsLine(layout)}</span>
       </figcaption>
@@ -87,7 +87,7 @@ export function SheetLayoutSvg({
           fontWeight={800}
           fontFamily="Barlow Condensed, sans-serif"
         >
-          {`Total: ${layout.cutTally.clicks}`}
+          {`Cut count: ${layout.cutTally.clicks}`}
         </text>
         <rect
           x={0}

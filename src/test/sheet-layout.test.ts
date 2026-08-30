@@ -47,7 +47,7 @@ describe("sheet layout geometry", () => {
     expect(layout.caption).toMatch(/Repeat 2-up, all same way/);
     expect(layout.caption).toMatch(/Sheet turned for feed/);
     expect(layout.caption).toMatch(/Cut 1: split to 8\.5×11/);
-    expect(layout.caption).toMatch(/Total: 1 Challenge click/);
+    expect(layout.caption).toMatch(/Cut count: 1/);
     expect(layout.cutTally).toMatchObject({ clicks: 1, splits: 1, faceTrims: 0 });
   });
 
@@ -71,7 +71,7 @@ describe("sheet layout geometry", () => {
       { n: 2, axis: "v", x: 6, y: 0 },
     ]);
     expect(layout.caption).toBe(
-      "Repeat 4-up, all same way. Cut 1: split to strips. Cut 2: cut strips to 6×9. Total: 2 Challenge clicks.",
+      "Repeat 4-up, all same way. Cut 1: split to strips. Cut 2: cut strips to 6×9. Cut count: 2.",
     );
     expect(layout.cutTally).toMatchObject({
       clicks: 2,
@@ -132,7 +132,7 @@ describe("sheet layout geometry", () => {
     expect(layout.cutTally.faceTrimReasons).toEqual(
       expect.arrayContaining(["gripper leftover", "trim/bleed edges", "unused parent margin"]),
     );
-    expect(layout.caption).toMatch(/Total: \d+ Challenge clicks/);
+    expect(layout.caption).toMatch(/Cut count: \d+/);
   });
 
   it("same-size letter is 1-up with no cut lines", () => {
@@ -145,7 +145,7 @@ describe("sheet layout geometry", () => {
     expect(layout.needsFileRotate).toBe(false);
     expect(layout.pieces[0].finish).toEqual({ x: 0, y: 0, w: 8.5, h: 11 });
     expect(layout.cutTally).toMatchObject({ clicks: 0, splits: 0, faceTrims: 0 });
-    expect(layout.caption).toMatch(/Total: 0 Challenge clicks/);
+    expect(layout.caption).toMatch(/Cut count: 0/);
   });
 });
 
@@ -157,7 +157,8 @@ describe("Challenge 305 CRT cut totals", () => {
     expect(nest.cuts.splits).toBe(1);
     expect(nest.cuts.faceTrims).toBe(0);
     expect(nest.cuts.splitWhy).toBe("between the n-up pieces");
-    expect(nest.cuts.why).toMatch(/Total: 1 Challenge click/);
+    expect(nest.cuts.why).toMatch(/Cut count: 1/);
+    expect(nest.cuts.brief).toBe("1 split, no face trim");
     expect(nest.cuts.why).toMatch(/Face trim: no/);
     expect(nest.cuts.why).toMatch(/Splits: 1 \(between the n-up pieces\)/);
   });
@@ -169,7 +170,8 @@ describe("Challenge 305 CRT cut totals", () => {
     expect(nest.cuts.splits).toBe(2);
     expect(nest.cuts.faceTrims).toBe(0);
     expect(nest.cuts.splitWhy).toBe("strip then cut the strip");
-    expect(nest.cuts.why).toMatch(/Total: 2 Challenge clicks/);
+    expect(nest.cuts.why).toMatch(/Cut count: 2/);
+    expect(nest.cuts.brief).toBe("2 splits, no face trim");
     expect(nest.cuts.why).toMatch(/Face trim: no/);
     expect(nest.cuts.why).toMatch(/Splits: 2 \(strip then cut the strip\)/);
   });
@@ -183,7 +185,8 @@ describe("Challenge 305 CRT cut totals", () => {
     expect(nest.cuts.splits).toBe(2);
     expect(nest.cuts.faceTrims).toBe(6);
     expect(nest.cuts.clicks).toBe(8);
-    expect(nest.cuts.why).toMatch(/Total: 8 Challenge clicks/);
+    expect(nest.cuts.why).toMatch(/Cut count: 8/);
+    expect(nest.cuts.brief).toBe("2 splits, 6 face trim");
     expect(nest.cuts.why).toMatch(/Face trim: yes, 6/);
     expect(nest.cuts.why).toMatch(/gripper leftover/);
     expect(nest.cuts.why).toMatch(/trim\/bleed edges/);

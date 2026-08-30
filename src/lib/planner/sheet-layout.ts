@@ -1,4 +1,4 @@
-import { nestFrame, tallyGuillotine, totalCaption, type CutTally } from "./cut-count";
+import { cutCountCaption, nestFrame, tallyGuillotine, type CutTally } from "./cut-count";
 import { repeatCaption } from "./nest";
 import { type JobInput, type NestResult } from "./types";
 
@@ -149,7 +149,7 @@ export function layoutFromNest(
     tileH,
     originX,
     originY,
-    caption: `${repeatCaption({ w: finish.finishW, h: finish.finishH }, nest)} ${totalCaption(cutTally.clicks)}`,
+    caption: `${repeatCaption({ w: finish.finishW, h: finish.finishH }, nest)} ${cutCountCaption(cutTally.clicks)}`,
     cutTally,
   };
 }
