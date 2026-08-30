@@ -1,4 +1,5 @@
 import { machineById, neverRouteIds } from "../machines";
+import { emptyCuts } from "./cut-count";
 import { isClassicLetterTabloid, nestOnParent, rankParents } from "./nest";
 import { parseJobText } from "./parse-job";
 import {
@@ -108,11 +109,7 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
       buyScore: job.qty,
       usableW: 8.5,
       usableH: 11,
-      cuts: {
-        machineId: "challenge-305-crt" as const,
-        clicks: 0,
-        why: "Non-paper path — no parent buy.",
-      },
+      cuts: emptyCuts("Non-paper path — no parent buy."),
     });
 
   const { press, also } = choosePress(job);

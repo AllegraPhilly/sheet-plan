@@ -1,5 +1,8 @@
-import { feedSize, repeatCaption } from "./nest";
-import { GRIPPER_IN, TRIM_IN, type JobInput, type NestResult } from "./types";
+import { nestFrame, tallyGuillotine, totalCaption, type CutTally } from "./cut-count";
+import { repeatCaption } from "./nest";
+import { type JobInput, type NestResult } from "./types";
+
+export { finishInNestOrientation } from "./cut-count";
 
 export type LayoutRect = { x: number; y: number; w: number; h: number };
 
@@ -44,17 +47,8 @@ export type SheetLayout = {
   originX: number;
   originY: number;
   caption: string;
+  cutTally: CutTally;
 };
-
-export function finishInNestOrientation(
-  finish: Pick<JobInput, "finishW" | "finishH">,
-  orientation: NestResult["orientation"],
-): { w: number; h: number } {
-  if (orientation === "rotated") {
-    return { w: finish.finishH, h: finish.finishW };
-  }
-  return { w: finish.finishW, h: finish.finishH };
-}
 
 /** Guillotine: fewer through-cuts first (strips), then cut the strip. */
 export function stripAxis(
@@ -78,23 +72,12 @@ export function layoutFromNest(
   const { parent, cols, rows, nUp, orientation, exactTile, gripperApplied, trimApplied } = nest;
   const sheetTurned = nest.sheetTurned ?? false;
   const needsFileRotate = nest.needsFileRotate ?? orientation === "rotated";
-  const feed = feedSize(parent, sheetTurned);
-  const piece = finishInNestOrientation(finish, orientation);
-  const trimPad = trimApplied ? TRIM_IN : 0;
-
-  const tileW = exactTile && cols > 0 ? feed.w / cols : piece.w + trimPad * 2;
-  const tileH = exactTile && rows > 0 ? feed.h / rows : piece.h + trimPad * 2;
-
-  const gripperH = gripperApplied ? GRIPPER_IN : 0;
-  const usableW = feed.w;
-  const usableH = feed.h - gripperH;
-  const packedW = cols * tileW;
-  const packedH = rows * tileH;
-  const originX = Math.max(0, (usableW - packedW) / 2);
-  const originY = Math.max(0, (usableH - packedH) / 2);
+  const frame = nestFrame(finish, nest);
+  const { feed, piece, tileW, tileH, originX, originY, trimPad, gripperH } = frame;
+  const cutTally = tallyGuillotine(finish, nest);
 
   const gripper = gripperApplied
-    ? { x: 0, y: feed.h - GRIPPER_IN, w: feed.w, h: GRIPPER_IN }
+    ? { x: 0, y: feed.h - gripperH, w: feed.w, h: gripperH }
     : null;
 
   const pieces: LayoutPiece[] = [];
@@ -166,6 +149,7 @@ export function layoutFromNest(
     tileH,
     originX,
     originY,
-    caption: repeatCaption({ w: finish.finishW, h: finish.finishH }, nest),
+    caption: `${repeatCaption({ w: finish.finishW, h: finish.finishH }, nest)} ${totalCaption(cutTally.clicks)}`,
+    cutTally,
   };
 }

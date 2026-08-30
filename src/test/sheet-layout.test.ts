@@ -47,6 +47,8 @@ describe("sheet layout geometry", () => {
     expect(layout.caption).toMatch(/Repeat 2-up, all same way/);
     expect(layout.caption).toMatch(/Sheet turned for feed/);
     expect(layout.caption).toMatch(/Cut 1: split to 8\.5×11/);
+    expect(layout.caption).toMatch(/Total: 1 Challenge click/);
+    expect(layout.cutTally).toMatchObject({ clicks: 1, splits: 1, faceTrims: 0 });
   });
 
   it("6×9 on 12×18 is exact 4-up with strip cut 1 then strip-to-finish cut 2", () => {
@@ -69,8 +71,14 @@ describe("sheet layout geometry", () => {
       { n: 2, axis: "v", x: 6, y: 0 },
     ]);
     expect(layout.caption).toBe(
-      "Repeat 4-up, all same way. Cut 1: split to strips. Cut 2: cut strips to 6×9.",
+      "Repeat 4-up, all same way. Cut 1: split to strips. Cut 2: cut strips to 6×9. Total: 2 Challenge clicks.",
     );
+    expect(layout.cutTally).toMatchObject({
+      clicks: 2,
+      splits: 2,
+      faceTrims: 0,
+      splitWhy: "strip then cut the strip",
+    });
     expect(layout.pieces.map((p) => p.finish)).toEqual([
       { x: 0, y: 0, w: 6, h: 9 },
       { x: 6, y: 0, w: 6, h: 9 },
@@ -117,6 +125,14 @@ describe("sheet layout geometry", () => {
     expect(layout.cuts[0].n).toBe(1);
     expect(layout.cuts[1].n).toBe(2);
     expect(layout.cuts[0].x2 - layout.cuts[0].x1).toBeCloseTo(13);
+    expect(layout.cutTally.splits).toBe(2);
+    expect(layout.cutTally.faceTrims).toBeGreaterThan(0);
+    expect(layout.cutTally.clicks).toBeGreaterThan(2);
+    expect(layout.cutTally.clicks).toBe(layout.cutTally.splits + layout.cutTally.faceTrims);
+    expect(layout.cutTally.faceTrimReasons).toEqual(
+      expect.arrayContaining(["gripper leftover", "trim/bleed edges", "unused parent margin"]),
+    );
+    expect(layout.caption).toMatch(/Total: \d+ Challenge clicks/);
   });
 
   it("same-size letter is 1-up with no cut lines", () => {
@@ -128,6 +144,50 @@ describe("sheet layout geometry", () => {
     expect(layout.gripper).toBeNull();
     expect(layout.needsFileRotate).toBe(false);
     expect(layout.pieces[0].finish).toEqual({ x: 0, y: 0, w: 8.5, h: 11 });
+    expect(layout.cutTally).toMatchObject({ clicks: 0, splits: 0, faceTrims: 0 });
+    expect(layout.caption).toMatch(/Total: 0 Challenge clicks/);
+  });
+});
+
+describe("Challenge 305 CRT cut totals", () => {
+  it("letter on tabloid is 1 split, 0 face trim", () => {
+    const nest = nestOf({ w: 8.5, h: 11 }, "tabloid");
+    expect(nest.exactTile).toBe(true);
+    expect(nest.cuts.clicks).toBe(1);
+    expect(nest.cuts.splits).toBe(1);
+    expect(nest.cuts.faceTrims).toBe(0);
+    expect(nest.cuts.splitWhy).toBe("between the n-up pieces");
+    expect(nest.cuts.why).toMatch(/Total: 1 Challenge click/);
+    expect(nest.cuts.why).toMatch(/Face trim: no/);
+    expect(nest.cuts.why).toMatch(/Splits: 1 \(between the n-up pieces\)/);
+  });
+
+  it("6×9 on 12×18 exact 4-up is 2 splits, 0 face trim", () => {
+    const nest = nestOf({ w: 6, h: 9 }, "12x18", 5000);
+    expect(nest.exactTile).toBe(true);
+    expect(nest.cuts.clicks).toBe(2);
+    expect(nest.cuts.splits).toBe(2);
+    expect(nest.cuts.faceTrims).toBe(0);
+    expect(nest.cuts.splitWhy).toBe("strip then cut the strip");
+    expect(nest.cuts.why).toMatch(/Total: 2 Challenge clicks/);
+    expect(nest.cuts.why).toMatch(/Face trim: no/);
+    expect(nest.cuts.why).toMatch(/Splits: 2 \(strip then cut the strip\)/);
+  });
+
+  it("6×9 on 13×19 4-up counts gripper+trim face strokes, not only 2 splits", () => {
+    const nest = nestOf({ w: 6, h: 9 }, "13x19", 5000);
+    expect(nest.exactTile).toBe(false);
+    expect(nest.nUp).toBe(4);
+    expect(nest.gripperApplied).toBe(true);
+    expect(nest.trimApplied).toBe(true);
+    expect(nest.cuts.splits).toBe(2);
+    expect(nest.cuts.faceTrims).toBe(6);
+    expect(nest.cuts.clicks).toBe(8);
+    expect(nest.cuts.why).toMatch(/Total: 8 Challenge clicks/);
+    expect(nest.cuts.why).toMatch(/Face trim: yes, 6/);
+    expect(nest.cuts.why).toMatch(/gripper leftover/);
+    expect(nest.cuts.why).toMatch(/trim\/bleed edges/);
+    expect(nest.cuts.why).toMatch(/unused parent margin/);
   });
 });
 
