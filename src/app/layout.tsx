@@ -28,9 +28,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="robots" content="noindex, nofollow, noarchive" />
       </head>
       <body className={`${roboto.variable} ${caveat.variable} antialiased`}>
-        <div className="watermark" aria-hidden="true">
-          <span>INTERNAL</span>
-        </div>
         <AppShell>{children}</AppShell>
       </body>
     </html>

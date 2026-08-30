@@ -1,9 +1,9 @@
 import { layoutFromNest, type SheetLayout } from "@/lib/planner/sheet-layout";
 import type { JobInput, NestResult } from "@/lib/planner/types";
 
-const INK = "#1c1428";
+const INK = "#522e90";
 const SHEET = "#ffffff";
-const PIECE = "#ffffff";
+const PIECE = "#fbf9fe";
 const GRIPPER = "#fcba30";
 const CUT = "#ee3e42";
 const FOLD = "#522e90";
@@ -98,7 +98,7 @@ export function SheetLayoutSvg({
           height={parent.h}
           fill={SHEET}
           stroke={INK}
-          strokeWidth={3}
+          strokeWidth={2}
           vectorEffect="non-scaling-stroke"
         />
         {gripper && (

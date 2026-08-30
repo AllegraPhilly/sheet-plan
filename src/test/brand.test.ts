@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { FORBIDDEN_UI_STRINGS } from "@/lib/machines";
 
@@ -19,6 +19,7 @@ describe("Allegra 2026 shop-floor identity", () => {
     expect(css).toMatch(/#408eb2/i);
     expect(css).toMatch(/#fcba30/i);
     expect(css).toMatch(/#26a046/i);
+    expect(css).toMatch(/#f7f5fb/i);
     expect(layout).toMatch(/Roboto/);
     expect(layout).toMatch(/Caveat/);
     expect(blob.toLowerCase()).not.toContain("trajan");
@@ -27,16 +28,39 @@ describe("Allegra 2026 shop-floor identity", () => {
     expect(svg).toMatch(/Roboto/);
   });
 
-  it("keeps INTERNAL / independently owned copy and no fake wordmark", () => {
+  it("ships the official 4-color standalone A and a light header, not a purple billboard", () => {
+    const root = new URL("../../", import.meta.url);
+    expect(existsSync(new URL("public/brand/allegra-a.svg", root))).toBe(true);
+    expect(existsSync(new URL("public/brand/allegra-a.png", root))).toBe(true);
+    const png = readFileSync(new URL("public/brand/allegra-a.png", root));
+    expect(png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(true);
+
     const shell = src("components/AppShell.tsx");
     const layout = src("app/layout.tsx");
-    expect(layout).toMatch(/INTERNAL/);
+    const css = src("app/globals.css");
+    expect(shell).toMatch(/brand\/allegra-a/);
+    expect(shell).toMatch(/Sheet Plan/);
+    expect(shell).toMatch(/Allegra Philadelphia/);
+    expect(shell).not.toMatch(/MARKETING/);
+    expect(shell).not.toMatch(/PRINT • MAIL/);
+    expect(shell).not.toMatch(/Stone Sans/);
+    expect(shell).not.toMatch(/ALLEGRA(?! Philadelphia)/);
+    expect(layout).not.toMatch(/watermark/);
+    expect(css).toMatch(/\.hairline/);
+    expect(css).toMatch(/\.nav-tab-active/);
+    expect(shell).not.toMatch(/bg-\[var\(--purple\)\]/);
+  });
+
+  it("keeps INTERNAL / independently owned copy and no fake wordmark file", () => {
+    const shell = src("components/AppShell.tsx");
     expect(shell).toMatch(/INTERNAL/);
     expect(shell).toMatch(/Independently owned and operated/);
     expect(shell).toMatch(/No franchise wordmark/);
-    expect(shell.toLowerCase()).not.toContain("<img");
     expect(shell.toLowerCase()).not.toContain("wordmark.svg");
     expect(shell.toLowerCase()).not.toContain("logo.svg");
+    expect(src("app/layout.tsx")).toMatch(/Caveat/);
+    expect(shell).toMatch(/hand/);
+    expect(src("components/PlannerView.tsx")).not.toMatch(/className="[^"]*hand/);
   });
 
   it("does not store allegraphilly.com, Fiery, or Vercel in identity files", () => {

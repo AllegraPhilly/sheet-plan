@@ -23,7 +23,7 @@ Static GitHub Pages only. No Vercel. No Node server in production. `output: 'exp
 
 ## Nav
 
-Planner · Mail Advisor · Floor list. INTERNAL watermark. `robots` noindex. Allegra 2026 shop-floor colors (purple #522E90, red #EE3E42) and Roboto. No franchise wordmark or stylized A (official art stays on MMO). No Trajan. No Fiery IP/hostname. No meter serials or USPS account IDs in the UI.
+Planner · Mail Advisor · Floor list. Small INTERNAL pill (Caveat Bold). `robots` noindex. Allegra 2026 shop-floor colors (purple #522E90, sky #408EB2, red #EE3E42, gold #FCBA30, green #26A046) and Roboto. Header uses the official 4-color standalone A plus Roboto “Sheet Plan” — not the ALLEGRA wordmark, not MARKETING • PRINT • MAIL. Footer: Independently owned and operated. No Trajan. No Fiery IP/hostname. No meter serials or USPS account IDs in the UI.
 
 ## Develop
 
