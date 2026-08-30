@@ -1,5 +1,5 @@
 import { machineById, neverRouteIds } from "../machines";
-import { nestOnParent, rankParents } from "./nest";
+import { isClassicLetterTabloid, nestOnParent, rankParents } from "./nest";
 import { parseJobText } from "./parse-job";
 import {
   PARENTS,
@@ -125,9 +125,15 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
       `${recommended.impressions} click${recommended.impressions === 1 ? "" : "s"} on ${press.name} (${job.sides === 2 ? "duplex" : "simplex"}).`,
     );
     if (recommended.exactTile) {
-      why.push(
-        "Classic: finish 8.5×11 on 11×17 is an exact 2-up tile — no gripper, no trim waste. Challenge 305 CRT one click vs two on a larger parent.",
-      );
+      if (isClassicLetterTabloid({ w: job.finishW, h: job.finishH }, recommended.parent)) {
+        why.push(
+          "Classic: finish 8.5×11 on 11×17 is an exact 2-up tile — no gripper, no trim waste. Challenge 305 CRT one click vs two on a larger parent.",
+        );
+      } else {
+        why.push(
+          `Exact ${recommended.nUp}-up tile on ${recommended.parent.label} — no gripper, no trim waste.`,
+        );
+      }
     }
     if (recommended.nUp > 1) {
       why.push(
