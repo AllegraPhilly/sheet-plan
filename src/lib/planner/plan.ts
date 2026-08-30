@@ -19,7 +19,7 @@ function step(id: string, action: string, confidence: RouteStep["confidence"] = 
   return { machineId: id, name: m.name, action, confidence };
 }
 
-function mustStep(id: string, action: string): RouteStep {
+export function mustStep(id: string, action: string): RouteStep {
   const s = step(id, action, "confident");
   if (!s) {
     throw new Error(`Confident machine missing: ${id}`);
@@ -182,4 +182,20 @@ export function planFromDescription(
 
 export function planFromJob(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"] = "form"): ProductionPlan {
   return buildPlan(job, parsedFrom);
+}
+
+/** Never throw into React render — a missing machine becomes a ticket error. */
+export function safePlanFromJob(
+  job: JobInput,
+  parsedFrom: ProductionPlan["parsedFrom"] = "form",
+): { plan: ProductionPlan | null; error: string | null } {
+  try {
+    return { plan: planFromJob(job, parsedFrom), error: null };
+  } catch (err) {
+    const message =
+      err instanceof Error && err.message
+        ? err.message
+        : "Could not build a production plan for this ticket.";
+    return { plan: null, error: message };
+  }
 }

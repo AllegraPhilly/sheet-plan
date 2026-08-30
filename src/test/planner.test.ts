@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { FORBIDDEN_UI_STRINGS, MACHINES, neverRouteIds } from "@/lib/machines";
+import { FORBIDDEN_UI_STRINGS, MACHINES, machineById, neverRouteIds } from "@/lib/machines";
 import { isExactTile, nestOnParent, rankParents } from "@/lib/planner/nest";
-import { planFromDescription, planFromJob } from "@/lib/planner/plan";
+import { mustStep, planFromDescription, planFromJob, safePlanFromJob } from "@/lib/planner/plan";
 import { PARENTS, VERSANT_PLAN_MAX, type JobInput } from "@/lib/planner/types";
 
 const letterJob = (over: Partial<JobInput> = {}): JobInput => ({
@@ -18,6 +18,28 @@ const letterJob = (over: Partial<JobInput> = {}): JobInput => ({
 });
 
 describe("classic letter plan", () => {
+  it("default 8.5×11 color ticket with no typed description still plans 11×17 2-up Challenge cut", () => {
+    const { plan, error } = safePlanFromJob({
+      description: "",
+      qty: 500,
+      finishW: 8.5,
+      finishH: 11,
+      color: "color",
+      sides: 1,
+      fold: "none",
+      bind: "none",
+      substrate: "paper",
+    });
+    expect(error).toBeNull();
+    expect(plan).toBeTruthy();
+    expect(plan!.recommended.parent.id).toBe("tabloid");
+    expect(plan!.recommended.nUp).toBe(2);
+    expect(plan!.recommended.exactTile).toBe(true);
+    expect(plan!.recommended.cuts.machineId).toBe("challenge-305-crt");
+    expect(plan!.recommended.cuts.clicks).toBe(1);
+    expect(plan!.press.machineId).toBe("versant-4100");
+  });
+
   it("finish 8.5×11 → buy 11×17 2-up → Challenge 305 CRT one click", () => {
     const plan = planFromJob(letterJob());
     expect(plan.recommended.parent.id).toBe("tabloid");
@@ -84,6 +106,26 @@ describe("secrets and brand", () => {
     const blob = JSON.stringify({ MACHINES, PARENTS });
     for (const s of FORBIDDEN_UI_STRINGS) {
       expect(blob.toLowerCase()).not.toContain(s.toLowerCase());
+    }
+  });
+});
+
+describe("planner errors", () => {
+  it("mustStep throws when a confident machine is missing", () => {
+    expect(() => mustStep("no-such-press", "Print.")).toThrow(/Confident machine missing: no-such-press/);
+  });
+
+  it("safePlanFromJob catches mustStep throws instead of blanking the ticket", () => {
+    const versant = machineById("versant-4100")!;
+    const prev = versant.confidence;
+    versant.confidence = "skip";
+    try {
+      expect(() => planFromJob(letterJob())).toThrow(/Confident machine missing: versant-4100/);
+      const { plan, error } = safePlanFromJob(letterJob());
+      expect(plan).toBeNull();
+      expect(error).toMatch(/Confident machine missing: versant-4100/);
+    } finally {
+      versant.confidence = prev;
     }
   });
 });
