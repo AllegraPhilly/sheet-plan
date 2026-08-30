@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TermLabel } from "@/components/GlossaryTip";
+import { SheetLayoutSvg } from "@/components/SheetLayoutSvg";
 import { inspectFileInBrowser } from "@/lib/inspect/browser-inspect";
 import { inferFinishFromMedia, type InspectedFile } from "@/lib/inspect/file-inspect";
 import { safePlanFromJob } from "@/lib/planner/plan";
@@ -473,6 +474,14 @@ function PlanCard({
   const alts = plan.alternatives ?? [];
   const warnings = plan.warnings ?? [];
   const who = customer.trim();
+  const parents = r ? [r, ...alts] : [];
+  const [layoutParentId, setLayoutParentId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLayoutParentId(null);
+  }, [r?.parent?.id, plan.job.finishW, plan.job.finishH, plan.job.qty]);
+
+  const shown = parents.find((n) => n.parent?.id === layoutParentId) ?? r;
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
@@ -515,6 +524,14 @@ function PlanCard({
           <TermLabel term="gripper">Gripper {r.gripperApplied ? "0.25 in" : "off"}</TermLabel>
           <TermLabel term="trim">Trim {r.trimApplied ? "0.125 in" : "off"}</TermLabel>
         </p>
+      )}
+
+      {shown && (
+        <SheetLayoutSvg
+          finish={plan.job}
+          nest={shown}
+          isRecommended={shown.parent?.id === r?.parent?.id}
+        />
       )}
 
       <h3 className="ticket-head mt-6 text-2xl">Why</h3>
@@ -567,15 +584,42 @@ function PlanCard({
                 </tr>
               </thead>
               <tbody>
-                {[r, ...alts].map((n) => (
-                  <tr key={n.parent?.id ?? n.parent?.label} className="rule">
-                    <td className="py-1">{n.parent?.label ?? "—"}</td>
-                    <td>{n.nUp}</td>
-                    <td>{n.sheetsToBuy}</td>
-                    <td>{n.impressions}</td>
-                    <td className="mono">{Number.isFinite(n.buyScore) ? n.buyScore.toFixed(1) : "—"}</td>
-                  </tr>
-                ))}
+                {parents.map((n) => {
+                  const id = n.parent?.id ?? n.parent?.label ?? "";
+                  const isShown = shown?.parent?.id === n.parent?.id;
+                  return (
+                    <tr key={id} className="rule">
+                      <td className="py-2">
+                        <div>{n.parent?.label ?? "—"}</div>
+                        <button
+                          type="button"
+                          className={`mt-1 min-h-11 px-2 text-sm font-semibold underline-offset-2 ${
+                            isShown
+                              ? "border-2 border-[var(--ink)] bg-white no-underline"
+                              : "underline"
+                          }`}
+                          aria-pressed={isShown}
+                          aria-label={`See layout for ${n.parent?.label ?? "parent"}`}
+                          onClick={() => {
+                            setLayoutParentId(n.parent?.id ?? null);
+                            requestAnimationFrame(() => {
+                              document.getElementById("sheet-layout")?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "nearest",
+                              });
+                            });
+                          }}
+                        >
+                          See layout
+                        </button>
+                      </td>
+                      <td>{n.nUp}</td>
+                      <td>{n.sheetsToBuy}</td>
+                      <td>{n.impressions}</td>
+                      <td className="mono">{Number.isFinite(n.buyScore) ? n.buyScore.toFixed(1) : "—"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
