@@ -6,6 +6,10 @@ import { SADDLE_PAGES_ERROR, nestSaddle } from "@/lib/planner/saddle";
 import { autoDescription } from "@/lib/planner/ticket-text";
 import type { JobInput } from "@/lib/planner/types";
 
+function errorMessage(pages: number): string | null {
+  return safePlanFromJob(saddleJob({ pages })).error;
+}
+
 const saddleJob = (over: Partial<JobInput> = {}): JobInput => ({
   description: "100 color 8.5x11 16-page saddle booklet",
   qty: 100,
@@ -97,12 +101,26 @@ describe("saddle booklet plan", () => {
   });
 
   it("page count not divisible by 4 is a hard error — no plan, no blank padding", () => {
-    const { plan, error } = safePlanFromJob(saddleJob({ pages: 15 }));
-    expect(plan).toBeNull();
-    expect(error).toBe(SADDLE_PAGES_ERROR);
-    expect(error).toMatch(/do not pad/i);
+    for (const pages of [1, 2, 6, 10, 14, 15]) {
+      const { plan, error } = safePlanFromJob(saddleJob({ pages }));
+      expect(plan, `pages ${pages}`).toBeNull();
+      expect(error).toBe(SADDLE_PAGES_ERROR);
+    }
+    expect(errorMessage(15)).toMatch(/do not pad/i);
     expect(() => planFromJob(saddleJob({ pages: 10 }))).toThrow(SADDLE_PAGES_ERROR);
     expect(() => nestSaddle(saddleJob({ pages: 7 }))).toThrow(SADDLE_PAGES_ERROR);
+  });
+
+  it("Build PLAN and Save share the same hard error — saved snapshot has no plan", () => {
+    const built = safePlanFromJob(saddleJob({ pages: 15 }));
+    expect(built.plan).toBeNull();
+    expect(built.error).toBe(SADDLE_PAGES_ERROR);
+    const saved = {
+      plan: built.plan,
+      planError: built.error,
+    };
+    expect(saved.plan).toBeNull();
+    expect(saved.planError).toBe(SADDLE_PAGES_ERROR);
   });
 
   it("missing pages is the same hard error", () => {

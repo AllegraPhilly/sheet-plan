@@ -315,8 +315,8 @@ export function PlannerView() {
                 label="Pages"
                 term="saddle"
                 value={job.pages ?? 8}
-                min={4}
-                step={4}
+                min={1}
+                step={1}
                 onChange={(n) => patch("pages", n)}
               />
             )}
