@@ -1,35 +1,32 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TermLabel } from "@/components/GlossaryTip";
 import { inspectFileInBrowser } from "@/lib/inspect/browser-inspect";
 import { inferFinishFromMedia, type InspectedFile } from "@/lib/inspect/file-inspect";
 import { safePlanFromJob } from "@/lib/planner/plan";
+import {
+  deleteSavedJob,
+  loadSavedJobs,
+  newSavedJobId,
+  savedJobLabel,
+  upsertSavedJob,
+  type SavedJob,
+} from "@/lib/planner/saved-jobs";
+import { autoDescription, defaultTicket, todayISO } from "@/lib/planner/ticket-text";
 import type { ColorPath, JobInput, ProductionPlan } from "@/lib/planner/types";
 import type { GlossaryKey } from "@/lib/glossary";
 
-const empty: JobInput = {
-  description: "",
-  qty: 500,
-  finishW: 8.5,
-  finishH: 11,
-  color: "color",
-  sides: 1,
-  fold: "none",
-  bind: "none",
-  substrate: "paper",
-};
+const fieldClass = "mt-1 w-full border-2 border-[var(--ink)] bg-white p-2.5 text-base";
 
 function ticketJob(job: JobInput): JobInput {
   const qty = Number.isFinite(job.qty) && job.qty > 0 ? job.qty : 1;
   const finishW = Number.isFinite(job.finishW) && job.finishW > 0 ? job.finishW : 8.5;
   const finishH = Number.isFinite(job.finishH) && job.finishH > 0 ? job.finishH : 11;
+  const next = { ...job, qty, finishW, finishH };
   return {
-    ...job,
-    qty,
-    finishW,
-    finishH,
-    description: job.description.trim() || `${qty} ${finishW}×${finishH}`,
+    ...next,
+    description: job.description.trim() || autoDescription(next),
   };
 }
 
@@ -40,14 +37,24 @@ function parsedFrom(job: JobInput, inspected: InspectedFile | null): ProductionP
 }
 
 export function PlannerView() {
-  const [job, setJob] = useState<JobInput>(empty);
+  const [job, setJob] = useState<JobInput>(defaultTicket);
+  const [customer, setCustomer] = useState("");
+  const [jobDate, setJobDate] = useState(todayISO);
   const [inspected, setInspected] = useState<InspectedFile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [saved, setSaved] = useState<SavedJob[]>([]);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const descDirtyRef = useRef(false);
   const planPaneRef = useRef<HTMLElement>(null);
 
+  useEffect(() => {
+    setSaved(loadSavedJobs());
+  }, []);
+
   const built = useMemo(() => {
-    if (!touched && !job.description.trim() && !inspected) {
+    if (!touched && !inspected) {
       return { plan: null as ProductionPlan | null, error: null as string | null };
     }
     return safePlanFromJob(ticketJob(job), parsedFrom(job, inspected));
@@ -65,7 +72,26 @@ export function PlannerView() {
 
   function patch<K extends keyof JobInput>(key: K, value: JobInput[K]) {
     setTouched(true);
-    setJob((j) => ({ ...j, [key]: value }));
+    setNotice(null);
+    setJob((j) => {
+      const next = { ...j, [key]: value };
+      if (key !== "description" && !descDirtyRef.current) {
+        next.description = autoDescription(next);
+      }
+      return next;
+    });
+  }
+
+  function onDescriptionChange(value: string) {
+    setTouched(true);
+    setNotice(null);
+    if (!value.trim()) {
+      descDirtyRef.current = false;
+      setJob((j) => ({ ...j, description: autoDescription(j) }));
+      return;
+    }
+    descDirtyRef.current = true;
+    setJob((j) => ({ ...j, description: value }));
   }
 
   async function onFile(file: File | undefined) {
@@ -77,169 +103,295 @@ export function PlannerView() {
       setTouched(true);
       if (info.widthIn && info.heightIn) {
         const finish = inferFinishFromMedia(info.widthIn, info.heightIn);
-        setJob((j) => ({
-          ...j,
-          finishW: finish.w,
-          finishH: finish.h,
-          description: j.description || file.name,
-        }));
+        setJob((j) => {
+          const next = { ...j, finishW: finish.w, finishH: finish.h };
+          if (!descDirtyRef.current) next.description = autoDescription(next);
+          return next;
+        });
       }
     } catch {
       setError("Could not inspect that file in the browser. Enter finish size by hand.");
     }
   }
 
+  function persistTicket() {
+    setError(null);
+    setTouched(true);
+    const ticket = ticketJob(job);
+    const result = safePlanFromJob(ticket, parsedFrom(job, inspected));
+    if (result.error) setError(result.error);
+    const entry: SavedJob = {
+      id: openId ?? newSavedJobId(),
+      savedAt: new Date().toISOString(),
+      customer: customer.trim(),
+      jobDate,
+      ticket,
+      plan: result.plan,
+      planError: result.error,
+    };
+    setOpenId(entry.id);
+    setSaved(upsertSavedJob(entry));
+    setNotice("Saved on this phone. Not a quote.");
+  }
+
+  function openSaved(entry: SavedJob) {
+    descDirtyRef.current = true;
+    setOpenId(entry.id);
+    setCustomer(entry.customer);
+    setJobDate(entry.jobDate);
+    setJob(entry.ticket);
+    setInspected(null);
+    setTouched(true);
+    setError(entry.planError);
+    setNotice(null);
+    revealPlanPane();
+  }
+
+  function removeSaved(id: string) {
+    const row = saved.find((j) => j.id === id);
+    const ok = window.confirm(`Delete ${row ? savedJobLabel(row) : "this ticket"} from this phone?`);
+    if (!ok) return;
+    setSaved(deleteSavedJob(id));
+    if (openId === id) setOpenId(null);
+  }
+
+  function newTicket() {
+    descDirtyRef.current = false;
+    setJob(defaultTicket());
+    setCustomer("");
+    setJobDate(todayISO());
+    setInspected(null);
+    setTouched(false);
+    setError(null);
+    setNotice(null);
+    setOpenId(null);
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
-      <form
-        className="ticket p-5"
-        noValidate
-        onSubmit={(e) => {
-          e.preventDefault();
-          setError(null);
-          setTouched(true);
-          const result = safePlanFromJob(ticketJob(job), parsedFrom(job, inspected));
-          if (result.error) setError(result.error);
-          revealPlanPane();
-        }}
-      >
-        <h2 className="ticket-head text-3xl">JOB TICKET</h2>
-        <p className="mb-4 text-sm opacity-70">Describe the job and/or drop a file. Logic stays in this browser.</p>
-
-        <label className="mb-3 block text-sm font-semibold">
-          What are we making?
-          <textarea
-            className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
-            rows={3}
-            placeholder="500 color flyers 8.5x11, trim and deliver"
-            value={job.description}
-            onChange={(e) => patch("description", e.target.value)}
-          />
-        </label>
-
-        <label className="mb-3 block text-sm font-semibold">
-          File (PDF or image)
-          <input
-            type="file"
-            accept="application/pdf,image/*"
-            className="mt-1 block w-full text-sm"
-            onChange={(e) => void onFile(e.target.files?.[0])}
-          />
-        </label>
-        {inspected && (
-          <p className="mono mb-3 text-xs">
-            {inspected.name} · {inspected.pages} pg ·{" "}
-            {inspected.widthIn && inspected.heightIn
-              ? `${inspected.widthIn}×${inspected.heightIn} in`
-              : "size unknown"}
-          </p>
-        )}
-        {error && (
-          <p className="mb-3 text-sm text-[var(--stamp)]">{error}</p>
-        )}
-
-        <div className="grid grid-cols-2 gap-3">
-          <Num label="Qty" value={job.qty} onChange={(n) => patch("qty", Math.max(1, n))} />
-          <Num
-            label="Finish W (in)"
-            term="finish"
-            value={job.finishW}
-            step={0.125}
-            onChange={(n) => patch("finishW", n)}
-          />
-          <Num
-            label="Finish H (in)"
-            term="finish"
-            value={job.finishH}
-            step={0.125}
-            onChange={(n) => patch("finishH", n)}
-          />
-          <label className="text-sm font-semibold">
-            Color
-            <select
-              className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
-              value={job.color}
-              onChange={(e) => patch("color", e.target.value as ColorPath)}
-            >
-              <option value="color">Color</option>
-              <option value="bw">B&W</option>
-              <option value="auto">Auto</option>
-            </select>
-          </label>
-          <label className="text-sm font-semibold">
-            Sides
-            <select
-              className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
-              value={job.sides}
-              onChange={(e) => patch("sides", Number(e.target.value) as 1 | 2)}
-            >
-              <option value={1}>1-sided</option>
-              <option value={2}>2-sided</option>
-            </select>
-          </label>
-          <label className="text-sm font-semibold">
-            <TermLabel term="substrate">Substrate</TermLabel>
-            <select
-              className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
-              value={job.substrate}
-              onChange={(e) => patch("substrate", e.target.value as JobInput["substrate"])}
-            >
-              <option value="paper">Paper</option>
-              <option value="envelope">Envelope</option>
-              <option value="vinyl">Vinyl</option>
-              <option value="garment">Garment</option>
-              <option value="uv">UV / specialty</option>
-            </select>
-          </label>
-          <label className="text-sm font-semibold">
-            Fold
-            <select
-              className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
-              value={job.fold}
-              onChange={(e) => patch("fold", e.target.value as JobInput["fold"])}
-            >
-              <option value="none">None</option>
-              <option value="half">Half</option>
-              <option value="tri">Tri</option>
-              <option value="letter">Letter</option>
-              <option value="z">Z</option>
-            </select>
-          </label>
-          <label className="text-sm font-semibold">
-            Bind / pack
-            <select
-              className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
-              value={job.bind}
-              onChange={(e) => patch("bind", e.target.value as JobInput["bind"])}
-            >
-              <option value="none">None</option>
-              <option value="staple">Stitch</option>
-              <option value="coil">Coil</option>
-              <option value="drill">Drill</option>
-              <option value="laminate">Laminate</option>
-              <option value="shrink">Shrink</option>
-            </select>
-          </label>
-        </div>
-
-        <button
-          type="submit"
-          className="mt-4 w-full bg-[var(--ink)] py-3 font-semibold tracking-wide text-[var(--paper)]"
+      <div className="grid gap-4">
+        <form
+          className="ticket p-4 sm:p-5"
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            setError(null);
+            setTouched(true);
+            const result = safePlanFromJob(ticketJob(job), parsedFrom(job, inspected));
+            if (result.error) setError(result.error);
+            revealPlanPane();
+          }}
         >
-          Build PLAN
-        </button>
-        {ticketError && (
-          <p className="mt-3 text-sm text-[var(--stamp)]" role="alert">
-            {ticketError}
+          <h2 className="ticket-head text-3xl">JOB TICKET</h2>
+          <p className="mb-4 text-sm opacity-70">
+            Phone-first. Fields write the job line. Save stays on this phone — no login, not a quote.
           </p>
-        )}
-      </form>
+
+          <label className="mb-3 block text-sm font-semibold">
+            Customer name
+            <input
+              className={fieldClass}
+              autoComplete="organization"
+              value={customer}
+              onChange={(e) => {
+                setCustomer(e.target.value);
+                setNotice(null);
+              }}
+              placeholder="Walk-up"
+            />
+          </label>
+          <label className="mb-3 block text-sm font-semibold">
+            Job date
+            <input
+              type="date"
+              className={fieldClass}
+              value={jobDate}
+              onChange={(e) => setJobDate(e.target.value || todayISO())}
+            />
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Num label="Qty" value={job.qty} onChange={(n) => patch("qty", Math.max(1, n))} />
+            <Num
+              label="Finish W (in)"
+              term="finish"
+              value={job.finishW}
+              step={0.125}
+              onChange={(n) => patch("finishW", n)}
+            />
+            <Num
+              label="Finish H (in)"
+              term="finish"
+              value={job.finishH}
+              step={0.125}
+              onChange={(n) => patch("finishH", n)}
+            />
+            <label className="text-sm font-semibold">
+              Color
+              <select
+                className={fieldClass}
+                value={job.color}
+                onChange={(e) => patch("color", e.target.value as ColorPath)}
+              >
+                <option value="color">Color</option>
+                <option value="bw">B&W</option>
+                <option value="auto">Auto</option>
+              </select>
+            </label>
+            <label className="text-sm font-semibold">
+              Sides
+              <select
+                className={fieldClass}
+                value={job.sides}
+                onChange={(e) => patch("sides", Number(e.target.value) as 1 | 2)}
+              >
+                <option value={1}>1-sided</option>
+                <option value={2}>2-sided</option>
+              </select>
+            </label>
+            <label className="text-sm font-semibold">
+              <TermLabel term="substrate">Substrate</TermLabel>
+              <select
+                className={fieldClass}
+                value={job.substrate}
+                onChange={(e) => patch("substrate", e.target.value as JobInput["substrate"])}
+              >
+                <option value="paper">Paper</option>
+                <option value="envelope">Envelope</option>
+                <option value="vinyl">Vinyl</option>
+                <option value="garment">Garment</option>
+                <option value="uv">UV / specialty</option>
+              </select>
+            </label>
+            <label className="text-sm font-semibold">
+              Fold
+              <select
+                className={fieldClass}
+                value={job.fold}
+                onChange={(e) => patch("fold", e.target.value as JobInput["fold"])}
+              >
+                <option value="none">None</option>
+                <option value="half">Half</option>
+                <option value="tri">Tri</option>
+                <option value="letter">Letter</option>
+                <option value="z">Z</option>
+              </select>
+            </label>
+            <label className="text-sm font-semibold">
+              Bind / pack
+              <select
+                className={fieldClass}
+                value={job.bind}
+                onChange={(e) => patch("bind", e.target.value as JobInput["bind"])}
+              >
+                <option value="none">None</option>
+                <option value="staple">Stitch</option>
+                <option value="coil">Coil</option>
+                <option value="drill">Drill</option>
+                <option value="laminate">Laminate</option>
+                <option value="shrink">Shrink</option>
+              </select>
+            </label>
+          </div>
+
+          <label className="mt-3 block text-sm font-semibold">
+            Job line (auto — you can edit)
+            <textarea
+              className={fieldClass}
+              rows={2}
+              value={job.description}
+              onChange={(e) => onDescriptionChange(e.target.value)}
+            />
+          </label>
+
+          <label className="mt-3 block text-sm font-semibold">
+            File (PDF or image)
+            <input
+              type="file"
+              accept="application/pdf,image/*"
+              className="mt-1 block w-full text-sm"
+              onChange={(e) => void onFile(e.target.files?.[0])}
+            />
+          </label>
+          {inspected && (
+            <p className="mono mb-1 mt-2 text-xs">
+              {inspected.name} · {inspected.pages} pg ·{" "}
+              {inspected.widthIn && inspected.heightIn
+                ? `${inspected.widthIn}×${inspected.heightIn} in`
+                : "size unknown"}
+            </p>
+          )}
+          {error && <p className="mt-2 text-sm text-[var(--stamp)]">{error}</p>}
+
+          <div className="mt-4 grid grid-cols-1 gap-2">
+            <button
+              type="submit"
+              className="min-h-12 w-full bg-[var(--ink)] px-3 py-3 font-semibold tracking-wide text-[var(--paper)]"
+            >
+              Build PLAN
+            </button>
+            <button
+              type="button"
+              className="min-h-12 w-full border-2 border-[var(--ink)] bg-[var(--ticket)] px-3 py-3 font-semibold"
+              onClick={persistTicket}
+            >
+              Save on this phone
+            </button>
+            <button type="button" className="min-h-11 text-sm underline-offset-2 underline" onClick={newTicket}>
+              New ticket
+            </button>
+          </div>
+          {notice && (
+            <p className="mt-3 text-sm text-[var(--ok)]" role="status">
+              {notice}
+            </p>
+          )}
+          {ticketError && (
+            <p className="mt-3 text-sm text-[var(--stamp)]" role="alert">
+              {ticketError}
+            </p>
+          )}
+        </form>
+
+        <section className="ticket p-4 sm:p-5" aria-label="Saved jobs on this phone">
+          <h2 className="ticket-head text-3xl">SAVED JOBS</h2>
+          <p className="mb-3 text-sm opacity-70">This browser only. Clearing site data drops the list.</p>
+          {saved.length === 0 ? (
+            <p className="text-sm opacity-70">No tickets on this phone yet.</p>
+          ) : (
+            <ul>
+              {saved.map((entry) => (
+                <li key={entry.id} className="rule flex items-stretch gap-2 py-2 last:border-b-0">
+                  <button
+                    type="button"
+                    className={`min-h-12 flex-1 py-2 text-left ${openId === entry.id ? "font-semibold" : ""}`}
+                    onClick={() => openSaved(entry)}
+                  >
+                    <span className="block">{entry.customer.trim() || "Walk-up"}</span>
+                    <span className="block text-sm opacity-70">
+                      {entry.jobDate} · {entry.ticket.description}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="min-h-12 shrink-0 border-2 border-[var(--stamp)] px-3 text-sm font-semibold text-[var(--stamp)]"
+                    aria-label={`Delete ${savedJobLabel(entry)}`}
+                    onClick={() => removeSaved(entry.id)}
+                  >
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
 
       <section
         ref={planPaneRef}
         id="plan-pane"
         tabIndex={-1}
-        className="ticket scroll-mt-4 p-5 outline-none"
+        className="ticket scroll-mt-4 p-4 outline-none sm:p-5"
       >
         {built.error && !plan ? (
           <p className="text-[var(--stamp)]" role="alert">
@@ -251,7 +403,7 @@ export function PlannerView() {
             <TermLabel term="nUp">2-up</TermLabel>, one Challenge <TermLabel term="cutClick">click</TermLabel>.
           </p>
         ) : (
-          <PlanCard plan={plan} />
+          <PlanCard plan={plan} customer={customer} jobDate={jobDate} />
         )}
       </section>
     </div>
@@ -276,8 +428,9 @@ function Num({
       {term ? <TermLabel term={term}>{label}</TermLabel> : label}
       <input
         type="number"
+        inputMode="decimal"
         step={step}
-        className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
+        className={fieldClass}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
       />
@@ -285,7 +438,15 @@ function Num({
   );
 }
 
-function PlanCard({ plan }: { plan: ProductionPlan }) {
+function PlanCard({
+  plan,
+  customer,
+  jobDate,
+}: {
+  plan: ProductionPlan;
+  customer: string;
+  jobDate: string;
+}) {
   const r = plan.recommended;
   const press = plan.press;
   const why = plan.why ?? [];
@@ -293,12 +454,19 @@ function PlanCard({ plan }: { plan: ProductionPlan }) {
   const also = plan.alsoConsider ?? [];
   const alts = plan.alternatives ?? [];
   const warnings = plan.warnings ?? [];
+  const who = customer.trim();
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <h2 className="ticket-head text-3xl">PLAN</h2>
         <span className="stamp px-2 py-0.5 text-[10px]">Not a quote</span>
       </div>
+      {(who || jobDate) && (
+        <p className="mb-3 text-sm">
+          {who || "Walk-up"}
+          {jobDate ? ` · ${jobDate}` : ""}
+        </p>
+      )}
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
         <Row k="Press" v={`${press?.name ?? "Unassigned"} — ${press?.action ?? "no press step"}`} />
         <Row
@@ -369,28 +537,30 @@ function PlanCard({ plan }: { plan: ProductionPlan }) {
       {alts.length > 0 && r && (
         <>
           <h3 className="ticket-head mt-6 text-2xl">Other parents (buy score)</h3>
-          <table className="mt-2 w-full text-left text-sm">
-            <thead>
-              <tr className="rule">
-                <th className="py-1">Parent</th>
-                <th>n-up</th>
-                <th>Sheets</th>
-                <th>Clicks</th>
-                <th>Buy score</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[r, ...alts].map((n) => (
-                <tr key={n.parent?.id ?? n.parent?.label} className="rule">
-                  <td className="py-1">{n.parent?.label ?? "—"}</td>
-                  <td>{n.nUp}</td>
-                  <td>{n.sheetsToBuy}</td>
-                  <td>{n.impressions}</td>
-                  <td className="mono">{Number.isFinite(n.buyScore) ? n.buyScore.toFixed(1) : "—"}</td>
+          <div className="overflow-x-auto">
+            <table className="mt-2 w-full text-left text-sm">
+              <thead>
+                <tr className="rule">
+                  <th className="py-1">Parent</th>
+                  <th>n-up</th>
+                  <th>Sheets</th>
+                  <th>Clicks</th>
+                  <th>Buy score</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {[r, ...alts].map((n) => (
+                  <tr key={n.parent?.id ?? n.parent?.label} className="rule">
+                    <td className="py-1">{n.parent?.label ?? "—"}</td>
+                    <td>{n.nUp}</td>
+                    <td>{n.sheetsToBuy}</td>
+                    <td>{n.impressions}</td>
+                    <td className="mono">{Number.isFinite(n.buyScore) ? n.buyScore.toFixed(1) : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
 
