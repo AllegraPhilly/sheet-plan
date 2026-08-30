@@ -173,7 +173,7 @@ export function PlannerView() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
+    <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
       <div className="grid gap-4">
         <form
           className="ticket p-3 sm:p-4"
@@ -187,7 +187,7 @@ export function PlannerView() {
             revealPlanPane();
           }}
         >
-          <h2 className="ticket-head text-3xl">JOB TICKET</h2>
+          <h2 className="ticket-head">JOB TICKET</h2>
           <p className="mb-4 text-sm opacity-70">
             Phone-first. Fields write the job line. Save stays on this phone — no login, not a quote.
           </p>
@@ -205,7 +205,7 @@ export function PlannerView() {
               placeholder="Walk-up"
             />
           </label>
-          <label className="mb-3 block text-sm font-semibold">
+          <label className="mb-3 block min-w-0 overflow-hidden text-sm font-semibold">
             Job date
             <input
               type="date"
@@ -215,9 +215,9 @@ export function PlannerView() {
             />
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid min-w-0 grid-cols-2 gap-3">
             <Num label="Qty" value={job.qty} min={1} onChange={(n) => patch("qty", n)} />
-            <label className="text-sm font-semibold">
+            <label className="min-w-0 text-sm font-semibold">
               <TermLabel term="size">Size</TermLabel>
               <select
                 className={fieldClass}
@@ -255,7 +255,7 @@ export function PlannerView() {
               step={0.125}
               onChange={(n) => patch("finishH", n)}
             />
-            <label className="text-sm font-semibold">
+            <label className="min-w-0 text-sm font-semibold">
               <TermLabel term="mixed">Color</TermLabel>
               <select
                 className={fieldClass}
@@ -277,7 +277,7 @@ export function PlannerView() {
                 <option value="mixed">Mixed</option>
               </select>
             </label>
-            <label className="text-sm font-semibold">
+            <label className="min-w-0 text-sm font-semibold">
               Sides
               <select
                 className={fieldClass}
@@ -288,7 +288,7 @@ export function PlannerView() {
                 <option value={2}>2-sided</option>
               </select>
             </label>
-            <label className="text-sm font-semibold">
+            <label className="min-w-0 text-sm font-semibold">
               <TermLabel term="substrate">Substrate</TermLabel>
               <select
                 className={fieldClass}
@@ -302,7 +302,7 @@ export function PlannerView() {
                 <option value="uv">UV / specialty</option>
               </select>
             </label>
-            <label className="text-sm font-semibold">
+            <label className="min-w-0 text-sm font-semibold">
               Fold
               <select
                 className={fieldClass}
@@ -316,7 +316,7 @@ export function PlannerView() {
                 <option value="z">Z</option>
               </select>
             </label>
-            <label className="text-sm font-semibold">
+            <label className="min-w-0 text-sm font-semibold">
               Bind / pack
               <select
                 className={fieldClass}
@@ -492,7 +492,7 @@ export function PlannerView() {
         </form>
 
         <section className="ticket p-3 sm:p-4" aria-label="Saved jobs on this phone">
-          <h2 className="ticket-head text-3xl">SAVED JOBS</h2>
+          <h2 className="ticket-head">SAVED JOBS</h2>
           <p className="mb-3 text-sm opacity-70">This browser only. Clearing site data drops the list.</p>
           {saved.length === 0 ? (
             <p className="text-sm opacity-70">No tickets on this phone yet.</p>
@@ -573,7 +573,7 @@ function Num({
   }
 
   return (
-    <label className="text-sm font-semibold">
+    <label className="min-w-0 text-sm font-semibold">
       {term ? <TermLabel term={term}>{label}</TermLabel> : label}
       <input
         type="number"
@@ -622,7 +622,7 @@ function PlanCard({
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-        <h2 className="ticket-head text-3xl">PLAN</h2>
+        <h2 className="ticket-head">PLAN</h2>
         <span className="quiet-note">Not a quote</span>
       </div>
       {(who || jobDate) && (
@@ -697,7 +697,7 @@ function PlanCard({
         />
       )}
 
-      <h3 className="ticket-head mt-6 text-2xl">Why</h3>
+      <h3 className="ticket-head mt-6">Why</h3>
       <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
         {why.length === 0 ? (
           <li>Plan built from the ticket fields.</li>
@@ -708,7 +708,7 @@ function PlanCard({
 
       {finishing.length > 0 && (
         <>
-          <h3 className="ticket-head mt-6 text-2xl">Finishing</h3>
+          <h3 className="ticket-head mt-6">Finishing</h3>
           <ul className="mt-2 space-y-1 text-sm">
             {finishing.map((s) => (
               <li key={s.machineId}>
@@ -721,7 +721,7 @@ function PlanCard({
 
       {also.length > 0 && (
         <>
-          <h3 className="ticket-head mt-6 text-2xl">Also consider</h3>
+          <h3 className="ticket-head mt-6">Also consider</h3>
           <ul className="mt-2 space-y-1 text-sm opacity-80">
             {also.map((s) => (
               <li key={s.machineId}>
@@ -734,7 +734,7 @@ function PlanCard({
 
       {alts.length > 0 && r && (
         <>
-          <h3 className="ticket-head mt-6 text-2xl">Other parents (buy score)</h3>
+          <h3 className="ticket-head mt-6">Other parents (buy score)</h3>
           <div className="overflow-x-auto">
             <table className="mt-2 w-full text-left text-sm">
               <thead>

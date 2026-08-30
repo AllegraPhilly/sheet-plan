@@ -5,7 +5,7 @@ export function FloorView() {
   const shown = MACHINES.filter((m) => m.id !== "mailbot" || m.confidence === "skip");
   return (
     <div>
-      <h2 className="ticket-head text-3xl">FLOOR LIST</h2>
+      <h2 className="ticket-head">FLOOR LIST</h2>
       <p className="mb-4 text-sm opacity-70">
         Route only <strong>confident</strong> machines. Fuzzy = also-consider. Skip = never route. MAILBOT is email
         only and is listed so nobody assigns it a USPS drop. Planning max{" "}
@@ -15,7 +15,7 @@ export function FloorView() {
         {shown.map((m) => (
           <article key={m.id} className="ticket p-3 sm:p-4">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="ticket-head text-2xl leading-none">{m.name}</h3>
+              <h3 className="ticket-head leading-none">{m.name}</h3>
               <span
                 className={`mono text-[10px] uppercase tracking-widest ${
                   m.confidence === "confident"
