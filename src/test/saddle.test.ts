@@ -41,6 +41,7 @@ describe("saddle booklet nest", () => {
     expect(nest.cuts.splits).toBe(0);
     expect(nest.cuts.faceTrims).toBe(0);
     expect(nest.cuts.why).toMatch(/not a letter cut/i);
+    expect(nest.signature).toMatchObject({ w: 17, h: 11, doubled: "w" });
   });
 
   it("buy score is ceil(pages/4) sheets per booklet on 11×17", () => {
@@ -57,12 +58,12 @@ describe("saddle booklet plan", () => {
     expect(plan.recommended.parent.id).toBe("tabloid");
     expect(plan.recommended.saddle).toBe(true);
     expect(plan.recommended.cuts.clicks).toBe(0);
-    expect(plan.alternatives).toHaveLength(0);
+    expect(plan.recommended.nUp).toBe(1);
     const ids = plan.finishing.map((s) => s.machineId);
     expect(ids).not.toContain("challenge-305-crt");
     expect(ids).toContain("baumfolder-714");
     expect(ids).toContain("salco-rapid-106e");
-    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).toMatch(/saddle/i);
+    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).toMatch(/saddle stitch/i);
     expect(plan.why.join(" ")).toMatch(/folded signature/i);
     expect(plan.why.join(" ")).toMatch(/not 8\.5×11 2-up cut/i);
     expect(plan.why.join(" ")).not.toMatch(/click-saving/i);
@@ -172,5 +173,98 @@ describe("saddle parse and ticket line", () => {
     expect(plan.recommended.saddle).toBe(true);
     expect(plan.recommended.cuts.clicks).toBe(0);
     expect(plan.recommended.nUp).toBe(1);
+  });
+});
+
+describe("any-size saddle — 5×7 playbill", () => {
+  it("585 color 5×7 20-page saddle plans 10×7 signatures 2-up on 11×17", () => {
+    const job = saddleJob({
+      description: "585 color 5x7 2-sided 20-page saddle booklet",
+      qty: 585,
+      finishW: 5,
+      finishH: 7,
+      pages: 20,
+    });
+    const { plan, error } = safePlanFromJob(job);
+    expect(error).toBeNull();
+    expect(plan).toBeTruthy();
+    expect(plan!.recommended.saddle).toBe(true);
+    expect(plan!.recommended.signature).toMatchObject({ w: 10, h: 7 });
+    expect(plan!.recommended.parent.id).toBe("tabloid");
+    expect(plan!.recommended.nUp).toBe(2);
+    expect(plan!.recommended.sheetsToBuy).toBe(1463);
+    expect(plan!.recommended.impressions).toBe(2926);
+    expect(plan!.recommended.cuts.splits).toBeGreaterThanOrEqual(1);
+    expect(plan!.recommended.cuts.why).toMatch(/gang splits/i);
+    expect(plan!.recommended.cuts.why).not.toMatch(/Saddle booklet planning is 8\.5×11/);
+    expect(plan!.press.machineId).toBe("versant-4100");
+    const ids = plan!.finishing.map((s) => s.machineId);
+    expect(ids).toContain("challenge-305-crt");
+    expect(ids).toContain("baumfolder-714");
+    expect(ids).toContain("salco-rapid-106e");
+    expect(plan!.why.join(" ")).toMatch(/10×7/);
+    expect(plan!.why.join(" ")).not.toMatch(/Saddle booklet planning is 8\.5×11/);
+  });
+
+  it("fold half + saddle is valid for 5×7", () => {
+    const { plan, error } = safePlanFromJob(
+      saddleJob({ finishW: 5, finishH: 7, pages: 20, qty: 585, fold: "half" }),
+    );
+    expect(error).toBeNull();
+    expect(plan?.recommended.saddle).toBe(true);
+  });
+});
+
+describe("any-size saddle — 2×2", () => {
+  it("2×2 8-page saddle plans a 4×2 signature on a shop parent", () => {
+    const { plan, error } = safePlanFromJob(
+      saddleJob({
+        description: "50 color 2x2 8-page saddle booklet",
+        qty: 50,
+        finishW: 2,
+        finishH: 2,
+        pages: 8,
+      }),
+    );
+    expect(error).toBeNull();
+    expect(plan).toBeTruthy();
+    expect(plan!.recommended.saddle).toBe(true);
+    expect(plan!.recommended.signature).toMatchObject({ w: 4, h: 2, doubled: "w" });
+    expect(plan!.recommended.nUp).toBeGreaterThanOrEqual(1);
+    expect(plan!.recommended.sheetsToBuy).toBeGreaterThan(0);
+    expect(plan!.finishing.map((s) => s.machineId)).toContain("baumfolder-714");
+    expect(plan!.finishing.map((s) => s.machineId)).toContain("salco-rapid-106e");
+  });
+});
+
+describe("mixed color saddle", () => {
+  it("20-page mixed defaults 4 color cover / 16 B&W on two presses", () => {
+    const plan = planFromJob(
+      saddleJob({
+        description: "585 mixed 5×7 20-page saddle (4 color cover / 16 B&W)",
+        qty: 585,
+        finishW: 5,
+        finishH: 7,
+        pages: 20,
+        color: "mixed",
+        colorPages: 4,
+        bwPages: 16,
+      }),
+    );
+    expect(plan.lines).toHaveLength(2);
+    expect(plan.lines![0]).toMatchObject({ role: "color", press: { machineId: "versant-4100" } });
+    expect(plan.lines![1]).toMatchObject({ role: "bw", press: { machineId: "accurio-6120" } });
+    expect(plan.lines![0].nest.saddle).toBe(true);
+    expect(plan.finishing.map((s) => s.machineId)).toContain("graphic-whizard-creasemaster-plus-ts");
+    expect(plan.finishing.map((s) => s.machineId)).toContain("salco-rapid-106e");
+    expect(autoDescription(plan.job)).toMatch(/4 color cover \/ 16 B&W/);
+  });
+
+  it("mixed pages that do not sum are a hard error", () => {
+    const { plan, error } = safePlanFromJob(
+      saddleJob({ color: "mixed", pages: 20, colorPages: 4, bwPages: 12 }),
+    );
+    expect(plan).toBeNull();
+    expect(error).toMatch(/must equal the page count/i);
   });
 });

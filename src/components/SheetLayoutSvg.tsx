@@ -36,7 +36,8 @@ export function SheetLayoutSvg({
   isRecommended: boolean;
 }) {
   const layout = layoutFromNest(finish, nest);
-  const { parent, pieces, cuts, gripper, fold } = layout;
+  const { parent, pieces, cuts, gripper, fold, folds } = layout;
+  const foldLines = folds?.length ? folds : fold ? [fold] : [];
   const padX = 0.55;
   const padTop = 2.25;
   const padBottom = 0.55;
@@ -140,31 +141,33 @@ export function SheetLayoutSvg({
             vectorEffect="non-scaling-stroke"
           />
         ))}
-        {fold && (
-          <g>
+        {foldLines.map((line, i) => (
+          <g key={`fold-${i}-${line.x1}-${line.y1}`}>
             <line
-              x1={fold.x1}
-              y1={fold.y1}
-              x2={fold.x2}
-              y2={fold.y2}
+              x1={line.x1}
+              y1={line.y1}
+              x2={line.x2}
+              y2={line.y2}
               stroke={FOLD}
               strokeWidth={3}
               strokeDasharray="6 5"
               strokeLinecap="square"
               vectorEffect="non-scaling-stroke"
             />
-            <text
-              x={(fold.x1 + fold.x2) / 2 + 0.35}
-              y={Math.min(fold.y1, fold.y2) + 1.1}
-              fill={INK}
-              fontSize={Math.min(0.55, parent.w * 0.045)}
-              fontWeight={800}
-              fontFamily="Roboto, sans-serif"
-            >
-              fold
-            </text>
+            {i === 0 && (
+              <text
+                x={(line.x1 + line.x2) / 2 + 0.35}
+                y={Math.min(line.y1, line.y2) + 1.1}
+                fill={INK}
+                fontSize={Math.min(0.55, parent.w * 0.045)}
+                fontWeight={800}
+                fontFamily="Roboto, sans-serif"
+              >
+                fold
+              </text>
+            )}
           </g>
-        )}
+        ))}
         {cuts.map((c) => {
           const midX = (c.x1 + c.x2) / 2;
           const midY = (c.y1 + c.y2) / 2;

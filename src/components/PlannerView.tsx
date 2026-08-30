@@ -16,7 +16,8 @@ import {
   type SavedJob,
 } from "@/lib/planner/saved-jobs";
 import { commitNumberField, parseNumberDraft } from "@/lib/planner/num-field";
-import { autoDescription, defaultTicket, todayISO } from "@/lib/planner/ticket-text";
+import { FINISH_PRESETS, matchFinishPreset, presetById } from "@/lib/planner/finish-sizes";
+import { applyMixedDefaults, autoDescription, defaultTicket, todayISO } from "@/lib/planner/ticket-text";
 import type { ColorPath, JobInput, ProductionPlan } from "@/lib/planner/types";
 import type { GlossaryKey } from "@/lib/glossary";
 
@@ -64,7 +65,7 @@ export function PlannerView() {
   }, [job, inspected, touched]);
 
   const plan = built.plan;
-  const ticketError = error ?? built.error;
+  const planError = error ?? built.error;
 
   function revealPlanPane() {
     requestAnimationFrame(() => {
@@ -135,6 +136,7 @@ export function PlannerView() {
     setOpenId(entry.id);
     setSaved(upsertSavedJob(entry));
     setNotice("Saved on this phone. Not a quote.");
+    if (result.error) revealPlanPane();
   }
 
   function openSaved(entry: SavedJob) {
@@ -215,6 +217,30 @@ export function PlannerView() {
 
           <div className="grid grid-cols-2 gap-3">
             <Num label="Qty" value={job.qty} min={1} onChange={(n) => patch("qty", n)} />
+            <label className="text-sm font-semibold">
+              <TermLabel term="size">Size</TermLabel>
+              <select
+                className={fieldClass}
+                value={matchFinishPreset(job.finishW, job.finishH)}
+                onChange={(e) => {
+                  const preset = presetById(e.target.value);
+                  if (!preset?.w || !preset.h) return;
+                  setTouched(true);
+                  setNotice(null);
+                  setJob((j) => {
+                    const next = { ...j, finishW: preset.w!, finishH: preset.h! };
+                    if (!descDirtyRef.current) next.description = autoDescription(next);
+                    return next;
+                  });
+                }}
+              >
+                {FINISH_PRESETS.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Num
               label="Finish W (in)"
               term="finish"
@@ -230,15 +256,25 @@ export function PlannerView() {
               onChange={(n) => patch("finishH", n)}
             />
             <label className="text-sm font-semibold">
-              Color
+              <TermLabel term="mixed">Color</TermLabel>
               <select
                 className={fieldClass}
                 value={job.color}
-                onChange={(e) => patch("color", e.target.value as ColorPath)}
+                onChange={(e) => {
+                  const color = e.target.value as ColorPath;
+                  setTouched(true);
+                  setNotice(null);
+                  setJob((j) => {
+                    let next: JobInput = { ...j, color };
+                    if (color === "mixed") next = applyMixedDefaults(next);
+                    if (!descDirtyRef.current) next.description = autoDescription(next);
+                    return next;
+                  });
+                }}
               >
                 <option value="color">Color</option>
                 <option value="bw">B&W</option>
-                <option value="auto">Auto</option>
+                <option value="mixed">Mixed</option>
               </select>
             </label>
             <label className="text-sm font-semibold">
@@ -290,11 +326,12 @@ export function PlannerView() {
                   setTouched(true);
                   setNotice(null);
                   setJob((j) => {
-                    const next: JobInput = { ...j, bind };
+                    let next: JobInput = { ...j, bind };
                     if (bind === "saddle") {
                       next.sides = 2;
                       next.fold = "half";
                       if (!next.pages || next.pages < 4) next.pages = 8;
+                      if (next.color === "mixed") next = applyMixedDefaults(next);
                     }
                     if (!descDirtyRef.current) next.description = autoDescription(next);
                     return next;
@@ -317,8 +354,95 @@ export function PlannerView() {
                 value={job.pages ?? 8}
                 min={1}
                 step={1}
-                onChange={(n) => patch("pages", n)}
+                onChange={(n) => {
+                  setTouched(true);
+                  setNotice(null);
+                  setJob((j) => {
+                    const next: JobInput = { ...j, pages: n };
+                    if (j.color === "mixed") {
+                      const colorPages = Math.min(j.colorPages ?? 4, n);
+                      next.colorPages = colorPages;
+                      next.bwPages = Math.max(0, n - colorPages);
+                    }
+                    if (!descDirtyRef.current) next.description = autoDescription(next);
+                    return next;
+                  });
+                }}
               />
+            )}
+            {job.color === "mixed" && job.bind === "saddle" && (
+              <>
+                <Num
+                  label="Color pages"
+                  term="mixed"
+                  value={job.colorPages ?? 4}
+                  min={0}
+                  step={4}
+                  onChange={(n) => {
+                    setTouched(true);
+                    setNotice(null);
+                    setJob((j) => {
+                      const pages = j.pages ?? 8;
+                      const next: JobInput = { ...j, colorPages: n, bwPages: Math.max(0, pages - n) };
+                      if (!descDirtyRef.current) next.description = autoDescription(next);
+                      return next;
+                    });
+                  }}
+                />
+                <Num
+                  label="B&W pages"
+                  term="mixed"
+                  value={job.bwPages ?? 0}
+                  min={0}
+                  step={4}
+                  onChange={(n) => {
+                    setTouched(true);
+                    setNotice(null);
+                    setJob((j) => {
+                      const pages = j.pages ?? 8;
+                      const next: JobInput = { ...j, bwPages: n, colorPages: Math.max(0, pages - n) };
+                      if (!descDirtyRef.current) next.description = autoDescription(next);
+                      return next;
+                    });
+                  }}
+                />
+              </>
+            )}
+            {job.color === "mixed" && job.bind !== "saddle" && (
+              <>
+                <Num
+                  label="Color qty"
+                  term="mixed"
+                  value={job.colorQty ?? job.qty}
+                  min={0}
+                  onChange={(n) => {
+                    setTouched(true);
+                    setNotice(null);
+                    setJob((j) => {
+                      const bw = j.bwQty ?? 0;
+                      const next: JobInput = { ...j, colorQty: n, qty: n + bw };
+                      if (!descDirtyRef.current) next.description = autoDescription(next);
+                      return next;
+                    });
+                  }}
+                />
+                <Num
+                  label="B&W qty"
+                  term="mixed"
+                  value={job.bwQty ?? 0}
+                  min={0}
+                  onChange={(n) => {
+                    setTouched(true);
+                    setNotice(null);
+                    setJob((j) => {
+                      const color = j.colorQty ?? 0;
+                      const next: JobInput = { ...j, bwQty: n, qty: color + n };
+                      if (!descDirtyRef.current) next.description = autoDescription(next);
+                      return next;
+                    });
+                  }}
+                />
+              </>
             )}
           </div>
 
@@ -349,8 +473,6 @@ export function PlannerView() {
                 : "size unknown"}
             </p>
           )}
-          {error && <p className="mt-2 text-sm text-[var(--stamp)]">{error}</p>}
-
           <div className="mt-4 grid grid-cols-1 gap-2">
             <button type="submit" className="btn-primary">
               Build PLAN
@@ -365,11 +487,6 @@ export function PlannerView() {
           {notice && (
             <p className="mt-3 text-sm text-[var(--ok)]" role="status">
               {notice}
-            </p>
-          )}
-          {ticketError && (
-            <p className="mt-3 text-sm text-[var(--stamp)]" role="alert">
-              {ticketError}
             </p>
           )}
         </form>
@@ -414,9 +531,9 @@ export function PlannerView() {
         tabIndex={-1}
         className="ticket scroll-mt-4 p-3 outline-none sm:p-4"
       >
-        {built.error && !plan ? (
+        {planError && !plan ? (
           <p className="text-[var(--stamp)]" role="alert">
-            {built.error}
+            {planError}
           </p>
         ) : !plan ? (
           <p className="opacity-70">
@@ -515,14 +632,24 @@ function PlanCard({
         </p>
       )}
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
-        <Row k="Press" v={`${press?.name ?? "Unassigned"} — ${press?.action ?? "no press step"}`} />
+        {(plan.lines?.length ?? 0) > 1 ? (
+          plan.lines!.map((line) => (
+            <Row
+              key={line.role}
+              k={line.role === "color" ? "Color press" : "B&W press"}
+              v={`${line.press.name} — ${line.nest.parent.label} · ${line.nest.sheetsToBuy} sheets · ${line.nest.nUp}-up`}
+            />
+          ))
+        ) : (
+          <Row k="Press" v={`${press?.name ?? "Unassigned"} — ${press?.action ?? "no press step"}`} />
+        )}
         <Row
           k="Parent to buy"
           term="parent"
           v={
             r?.parent
               ? r.saddle
-                ? `${r.parent.label} · ${r.sheetsToBuy} sheets · saddle signature (4 pages/sheet)`
+                ? `${r.parent.label} · ${r.sheetsToBuy} sheets · saddle signature ${r.signature ? `${r.signature.w}×${r.signature.h}` : ""} (${r.nUp}-up, 4 pages/sheet)`
                 : `${r.parent.label} · ${r.sheetsToBuy} sheets · ${r.nUp}-up`
               : "No parent nest for this ticket."
           }
@@ -533,7 +660,7 @@ function PlanCard({
           v={
             r
               ? r.saddle
-                ? `${r.impressions} (duplex on 11×17)`
+                ? `${r.impressions} (duplex on ${r.parent.label})`
                 : `${r.impressions} (${r.nUp}-up click-save)`
               : "—"
           }

@@ -44,7 +44,7 @@ function isTicket(value: unknown): value is JobInput {
     typeof t.qty === "number" &&
     typeof t.finishW === "number" &&
     typeof t.finishH === "number" &&
-    (t.color === "color" || t.color === "bw" || t.color === "auto") &&
+    (t.color === "color" || t.color === "bw" || t.color === "mixed" || (t as { color?: string }).color === "auto") &&
     (t.sides === 1 || t.sides === 2)
   );
 }

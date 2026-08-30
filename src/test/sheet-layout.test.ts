@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { nestOnParent, rankParents, repeatCaption } from "@/lib/planner/nest";
+import { nestSaddle } from "@/lib/planner/saddle";
 import { layoutFromNest } from "@/lib/planner/sheet-layout";
 import { GRIPPER_IN, PARENTS, TRIM_IN, type JobInput } from "@/lib/planner/types";
 
@@ -22,6 +23,31 @@ function nestOf(finish: { w: number; h: number }, parentId: (typeof PARENTS)[num
   expect(nest).toBeTruthy();
   return nest!;
 }
+
+describe("saddle playbill layout shows fold plus gang split", () => {
+  it("5×7 saddle 2-up of 10×7 has a fold and at least one parent split", () => {
+    const nest = nestSaddle({
+      description: "585 color 5x7 20-page saddle",
+      qty: 585,
+      finishW: 5,
+      finishH: 7,
+      color: "color",
+      sides: 2,
+      fold: "half",
+      bind: "saddle",
+      pages: 20,
+      substrate: "paper",
+    });
+    const layout = layoutFromNest({ finishW: 5, finishH: 7 }, nest);
+    expect(nest.nUp).toBe(2);
+    expect(layout.pieces.length).toBeGreaterThanOrEqual(4);
+    expect(layout.fold).toBeTruthy();
+    expect(layout.cuts.length).toBeGreaterThanOrEqual(1);
+    expect(layout.cutTally.splits).toBeGreaterThanOrEqual(1);
+    expect(layout.caption).toMatch(/10×7/);
+    expect(layout.caption).not.toMatch(/Cut 1: split to 8\.5×11/);
+  });
+});
 
 describe("sheet layout geometry", () => {
   it("letter on tabloid is same-way 2-across on a turned 17×11 feed, one numbered cut", () => {
@@ -225,7 +251,7 @@ describe("same-way recommend vs file rotate", () => {
     expect(same?.needsFileRotate).toBe(false);
     expect(same?.nUp).toBe(rotated!.nUp);
     expect(
-      repeatCaption({ w: 8.5, h: 11 }, { ...rotated!, needsFileRotate: true, orientation: "rotated" }),
+      repeatCaption({ w: 8.5, h: 11 }, { ...rotated!, needsFileRotate: true }),
     ).toMatch(/Prepress would have to rotate the file/);
   });
 });

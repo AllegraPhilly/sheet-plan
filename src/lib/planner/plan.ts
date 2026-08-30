@@ -2,11 +2,22 @@ import { machineById, neverRouteIds } from "../machines";
 import { emptyCuts } from "./cut-count";
 import { isClassicLetterTabloid, nestOnParent, rankParents } from "./nest";
 import { parseJobText } from "./parse-job";
-import { isCoverStock, isSaddleJob, nestSaddle, saddlePageError } from "./saddle";
+import {
+  isCoverStock,
+  isSaddleJob,
+  mixedSaddleError,
+  nestSaddle,
+  nestSaddleForPages,
+  saddleAlternatives,
+  saddlePageError,
+  sheetsPerSaddleBooklet,
+} from "./saddle";
 import {
   PARENTS,
   VERSANT_PLAN_MAX,
   type JobInput,
+  type NestResult,
+  type PressLine,
   type ProductionPlan,
   type RouteStep,
 } from "./types";
@@ -27,6 +38,14 @@ export function mustStep(id: string, action: string): RouteStep {
     throw new Error(`Confident machine missing: ${id}`);
   }
   return s;
+}
+
+export function pressForPath(path: "color" | "bw"): RouteStep {
+  if (path === "bw") return mustStep("accurio-6120", "B&W production impressions.");
+  return mustStep(
+    "versant-4100",
+    "Color production. Plan on parents ≤ 13×19.2 in (extra-long 13×47.2 is not a default parent).",
+  );
 }
 
 export function choosePress(job: JobInput): { press: RouteStep; also: RouteStep[] } {
@@ -51,13 +70,10 @@ export function choosePress(job: JobInput): { press: RouteStep; also: RouteStep[
   if (color === "bw") {
     const overflow = step("kyocera-taskalfa-2554ci", "Short-run B&W overflow only.", "confident");
     if (overflow && job.qty < 50) also.push(overflow);
-    return { press: mustStep("accurio-6120", "B&W production impressions."), also };
+    return { press: pressForPath("bw"), also };
   }
 
-  const press = mustStep(
-    "versant-4100",
-    "Color production. Plan on parents ≤ 13×19.2 in (extra-long 13×47.2 is not a default parent).",
-  );
+  const press = pressForPath("color");
   if (job.qty < 25) {
     const mfp = step("kyocera-taskalfa-2554ci", "Convenience / walk-up color.", "confident");
     if (mfp) also.push(mfp);
@@ -65,20 +81,27 @@ export function choosePress(job: JobInput): { press: RouteStep; also: RouteStep[
   return { press, also };
 }
 
-export function finishingSteps(job: JobInput, recommendedNUp: number): RouteStep[] {
+export function finishingSteps(job: JobInput, recommended: NestResult): RouteStep[] {
   const out: RouteStep[] = [];
   if (isSaddleJob(job)) {
-    if (isCoverStock(job)) {
+    if (recommended.cuts.clicks > 0) {
+      out.push(
+        mustStep("challenge-305-crt", "Split ganged signatures on the parent. Not a letter 2-up cut."),
+      );
+    }
+    if (job.color === "mixed") {
+      out.push(mustStep("graphic-whizard-creasemaster-plus-ts", "Crease cover signature, then gather."));
+    } else if (isCoverStock(job)) {
       out.push(mustStep("graphic-whizard-creasemaster-plus-ts", "Crease cover stock before fold."));
     }
     out.push(mustStep("baumfolder-714", "Fold: half (saddle signature)."));
-    out.push(mustStep("salco-rapid-106e", "Saddle stitch on the 11×17 fold."));
+    out.push(mustStep("salco-rapid-106e", "Saddle stitch on the fold."));
     if (job.scannedOriginal) {
       out.unshift(mustStep("epson-expression-11000xl", "Scan original (tabloid flatbed)."));
     }
     return out;
   }
-  if (recommendedNUp > 1 || job.finishW < 8.49 || job.finishH < 10.9) {
+  if (recommended.nUp > 1 || job.finishW < 8.49 || job.finishH < 10.9) {
     if (job.substrate === "paper") {
       out.push(mustStep("challenge-305-crt", "Cut parent to finish. 30.5 in knife, 3.5 in clamp."));
     }
@@ -100,85 +123,191 @@ export function finishingSteps(job: JobInput, recommendedNUp: number): RouteStep
   return out;
 }
 
+function fallbackNest(job: JobInput): NestResult {
+  return (
+    nestOnParent(job, PARENTS[0]) ?? {
+      parent: PARENTS[0],
+      nUp: 1,
+      orientation: "same" as const,
+      sheetTurned: false,
+      needsFileRotate: false,
+      cols: 1,
+      rows: 1,
+      exactTile: false,
+      gripperApplied: false,
+      trimApplied: false,
+      saddle: false,
+      sheetsToBuy: job.qty,
+      impressions: job.qty * job.sides,
+      buyScore: job.qty,
+      usableW: 8.5,
+      usableH: 11,
+      cuts: emptyCuts("Non-paper path — no parent buy."),
+    }
+  );
+}
+
+function mixedFlatQtys(job: JobInput): { color: number; bw: number } {
+  const c = job.colorQty;
+  const b = job.bwQty;
+  if (typeof c === "number" && Number.isFinite(c) && typeof b === "number" && Number.isFinite(b)) {
+    return { color: Math.max(0, c), bw: Math.max(0, b) };
+  }
+  return { color: job.qty, bw: 0 };
+}
+
+function paperNest(job: JobInput): NestResult {
+  return rankParents(job)[0] ?? fallbackNest(job);
+}
+
+function saddleWhy(job: JobInput, recommended: NestResult, press: RouteStep, lines?: PressLine[]): string[] {
+  const pages = job.pages!;
+  const sigsEach = sheetsPerSaddleBooklet(pages);
+  const why: string[] = [];
+  const sig = recommended.signature;
+  const sigLabel = sig ? `${sig.w}×${sig.h}` : "signature";
+  why.push(
+    `Buy ${recommended.sheetsToBuy} parent ${recommended.parent.label} (${pages} pages ÷ 4 = ${sigsEach} signatures each × ${job.qty} booklets). ${sigLabel} signature, ${recommended.nUp}-up on the parent. Folded signature, not 8.5×11 2-up cut on the Challenge.`,
+  );
+  if (lines && lines.length > 1) {
+    for (const line of lines) {
+      const who = line.role === "color" ? "Color" : "B&W";
+      why.push(
+        `${who}: ${line.nest.impressions} duplex clicks on ${line.press.name} (${line.nest.sheetsToBuy} ${line.nest.parent.label}).`,
+      );
+    }
+    why.push("Gather color and B&W signatures, crease cover, fold half on Baumfolder 714, saddle stitch on Salco Rapid 106E.");
+  } else {
+    why.push(
+      `${recommended.impressions} duplex clicks on ${press.name} (one signature sheet = 4 pages).`,
+    );
+    why.push("Fold half on Baumfolder 714. Saddle stitch on Salco Rapid 106E.");
+  }
+  if (isCoverStock(job)) {
+    why.push("Cover stock — crease on Graphic Whizard before fold.");
+  }
+  why.push(recommended.cuts.why);
+  return why;
+}
+
+function flatWhy(job: JobInput, recommended: NestResult, press: RouteStep): string[] {
+  const why: string[] = [];
+  why.push(
+    `Buy ${recommended.sheetsToBuy} parent ${recommended.parent.label} (${recommended.nUp}-up) — cheapest parent to purchase, not merely what is on the floor.`,
+  );
+  why.push(
+    `${recommended.impressions} click${recommended.impressions === 1 ? "" : "s"} on ${press.name} (${job.sides === 2 ? "duplex" : "simplex"}).`,
+  );
+  if (recommended.exactTile) {
+    if (isClassicLetterTabloid({ w: job.finishW, h: job.finishH }, recommended.parent)) {
+      why.push(
+        "Classic: finish 8.5×11 on 11×17 is an exact 2-up tile — turn the sheet, art stays the same way. No gripper, no trim. Challenge 305 CRT one click vs two on a larger parent.",
+      );
+    } else {
+      why.push(
+        `Exact ${recommended.nUp}-up tile on ${recommended.parent.label} — no gripper, no trim waste. Repeat gang, all same way as the file.`,
+      );
+    }
+  } else if (recommended.nUp > 1 && !recommended.needsFileRotate) {
+    why.push("Repeat gang — every piece the same way as the file. Turn the sheet if needed; do not rotate art.");
+  }
+  if (recommended.needsFileRotate) {
+    why.push("This nest needs the file rotated 90° — extra prepress work. Prefer a same-way parent when one fits.");
+  }
+  if (recommended.nUp > 1) {
+    why.push(
+      `Click-saving: ${recommended.nUp}-up cuts impressions vs 1-up letter (${job.qty * job.sides} → ${recommended.impressions}).`,
+    );
+  }
+  why.push(recommended.cuts.why);
+  return why;
+}
+
 export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"]): ProductionPlan {
   if (isSaddleJob(job)) {
     const pageErr = saddlePageError(job.pages);
     if (pageErr) throw new Error(pageErr);
+    const mixedErr = mixedSaddleError(job);
+    if (mixedErr) throw new Error(mixedErr);
   }
 
-  const ranked =
-    job.substrate === "paper" && !isSaddleJob(job) ? rankParents(job) : [];
-  const recommended =
-    isSaddleJob(job) && job.substrate === "paper"
-      ? nestSaddle(job)
-      : ranked[0] ??
-        nestOnParent(job, PARENTS[0]) ??
-        ({
-          parent: PARENTS[0],
-          nUp: 1,
-          orientation: "same" as const,
-          sheetTurned: false,
-          needsFileRotate: false,
-          cols: 1,
-          rows: 1,
-          exactTile: false,
-          gripperApplied: false,
-          trimApplied: false,
-          saddle: false,
-          sheetsToBuy: job.qty,
-          impressions: job.qty * job.sides,
-          buyScore: job.qty,
-          usableW: 8.5,
-          usableH: 11,
-          cuts: emptyCuts("Non-paper path — no parent buy."),
-        });
+  let recommended: NestResult;
+  let alternatives: NestResult[] = [];
+  let press: RouteStep;
+  let also: RouteStep[] = [];
+  let lines: PressLine[] | undefined;
 
-  const { press, also } = choosePress(job);
-  const finishing = finishingSteps(job, recommended.nUp);
+  if (isSaddleJob(job) && job.substrate === "paper") {
+    if (job.color === "mixed") {
+      const colorPages = job.colorPages ?? 0;
+      const bwPages = job.bwPages ?? 0;
+      const built: PressLine[] = [];
+      if (colorPages > 0) {
+        const nest = nestSaddleForPages({ ...job, color: "color", pages: colorPages }, colorPages);
+        built.push({ role: "color", press: pressForPath("color"), nest });
+      }
+      if (bwPages > 0) {
+        const nest = nestSaddleForPages({ ...job, color: "bw", pages: bwPages }, bwPages);
+        built.push({ role: "bw", press: pressForPath("bw"), nest });
+      }
+      if (built.length === 0) throw new Error(saddlePageError(job.pages) ?? "Saddle mixed job has no pages.");
+      lines = built;
+      recommended = built[0].nest;
+      press = built[0].press;
+      alternatives = saddleAlternatives({ ...job, color: built[0].role, pages: built[0].role === "color" ? colorPages : bwPages }, recommended);
+    } else {
+      recommended = nestSaddle(job);
+      alternatives = saddleAlternatives(job, recommended);
+      const chosen = choosePress({ ...job, color: job.color === "bw" ? "bw" : "color" });
+      press = chosen.press;
+      also = chosen.also;
+    }
+  } else if (job.color === "mixed" && job.substrate === "paper") {
+    const qtys = mixedFlatQtys(job);
+    const built: PressLine[] = [];
+    if (qtys.color > 0) {
+      const nest = paperNest({ ...job, qty: qtys.color, color: "color" });
+      built.push({ role: "color", press: pressForPath("color"), nest });
+    }
+    if (qtys.bw > 0) {
+      const nest = paperNest({ ...job, qty: qtys.bw, color: "bw" });
+      built.push({ role: "bw", press: pressForPath("bw"), nest });
+    }
+    if (built.length === 0) {
+      recommended = paperNest(job);
+      press = pressForPath("color");
+    } else {
+      lines = built;
+      recommended = built[0].nest;
+      press = built[0].press;
+      alternatives = rankParents({ ...job, qty: qtys.color || qtys.bw, color: "color" }).slice(1);
+    }
+  } else {
+    const ranked = job.substrate === "paper" ? rankParents(job) : [];
+    recommended = ranked[0] ?? fallbackNest(job);
+    alternatives = ranked.slice(1);
+    const chosen = choosePress(job);
+    press = chosen.press;
+    also = chosen.also;
+  }
+
+  const finishing = finishingSteps(job, recommended);
 
   const why: string[] = [];
   if (isSaddleJob(job) && job.substrate === "paper") {
-    const pages = job.pages!;
-    why.push(
-      `Buy ${recommended.sheetsToBuy} parent 11×17 (${pages} pages ÷ 4 = ${pages / 4} sheets each × ${job.qty} booklets). Folded signature, not 8.5×11 2-up cut on the Challenge.`,
-    );
-    why.push(
-      `${recommended.impressions} duplex clicks on ${press.name} (one 11×17 sheet = 4 pages).`,
-    );
-    why.push("Fold half on Baumfolder 714. Saddle stitch on Salco Rapid 106E.");
-    if (isCoverStock(job)) {
-      why.push("Cover stock — crease on Graphic Whizard before fold.");
-    }
-    why.push(recommended.cuts.why);
+    why.push(...saddleWhy(job, recommended, press, lines));
   } else if (job.substrate === "paper") {
-    why.push(
-      `Buy ${recommended.sheetsToBuy} parent ${recommended.parent.label} (${recommended.nUp}-up) — cheapest parent to purchase, not merely what is on the floor.`,
-    );
-    why.push(
-      `${recommended.impressions} click${recommended.impressions === 1 ? "" : "s"} on ${press.name} (${job.sides === 2 ? "duplex" : "simplex"}).`,
-    );
-    if (recommended.exactTile) {
-      if (isClassicLetterTabloid({ w: job.finishW, h: job.finishH }, recommended.parent)) {
+    if (lines && lines.length > 1) {
+      for (const line of lines) {
+        const who = line.role === "color" ? "Color" : "B&W";
         why.push(
-          "Classic: finish 8.5×11 on 11×17 is an exact 2-up tile — turn the sheet, art stays the same way. No gripper, no trim. Challenge 305 CRT one click vs two on a larger parent.",
-        );
-      } else {
-        why.push(
-          `Exact ${recommended.nUp}-up tile on ${recommended.parent.label} — no gripper, no trim waste. Repeat gang, all same way as the file.`,
+          `${who}: buy ${line.nest.sheetsToBuy} parent ${line.nest.parent.label} (${line.nest.nUp}-up) on ${line.press.name}.`,
         );
       }
-    } else if (recommended.nUp > 1 && !recommended.needsFileRotate) {
-      why.push("Repeat gang — every piece the same way as the file. Turn the sheet if needed; do not rotate art.");
+      why.push(recommended.cuts.why);
+    } else {
+      why.push(...flatWhy(job, recommended, press));
     }
-    if (recommended.needsFileRotate) {
-      why.push("This nest needs the file rotated 90° — extra prepress work. Prefer a same-way parent when one fits.");
-    }
-    if (recommended.nUp > 1) {
-      why.push(
-        `Click-saving: ${recommended.nUp}-up cuts impressions vs 1-up letter (${job.qty * job.sides} → ${recommended.impressions}).`,
-      );
-    }
-    why.push(recommended.cuts.why);
   } else {
     why.push(`Non-paper substrate (${job.substrate}) — no parent sheet buy.`);
   }
@@ -191,11 +320,8 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
   ) {
     warnings.push("Parent exceeds Versant planning max 13×19.2 in.");
   }
-  if (SKIP.has("mailbot")) {
-    // documented: MAILBOT never appears on a print plan
-  }
 
-  const routeIds = [press, ...finishing, ...also].map((s) => s.machineId);
+  const routeIds = [press, ...finishing, ...also, ...(lines ?? []).map((l) => l.press)].map((s) => s.machineId);
   if (routeIds.includes("mailbot")) {
     throw new Error("MAILBOT must never be assigned");
   }
@@ -204,8 +330,9 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
     job,
     parsedFrom,
     recommended,
-    alternatives: ranked.slice(1),
+    alternatives,
     press,
+    lines,
     finishing,
     alsoConsider: also,
     why,

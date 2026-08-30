@@ -1,4 +1,4 @@
-export type ColorPath = "color" | "bw" | "auto";
+export type ColorPath = "color" | "bw" | "mixed";
 
 export type ParentId = "letter" | "tabloid" | "12x18" | "13x19";
 
@@ -35,6 +35,14 @@ export type JobInput = {
   fold?: "none" | "half" | "tri" | "z" | "letter";
   /** Booklet pages. Saddle requires a multiple of 4 (4, 8, 12, …). */
   pages?: number;
+  /** Mixed saddle: color pages (whole signatures). */
+  colorPages?: number;
+  /** Mixed saddle: B&W pages (whole signatures). */
+  bwPages?: number;
+  /** Mixed flats: color piece qty. */
+  colorQty?: number;
+  /** Mixed flats: B&W piece qty. */
+  bwQty?: number;
   substrate?: "paper" | "vinyl" | "garment" | "envelope" | "uv";
   scannedOriginal?: boolean;
 };
@@ -52,8 +60,10 @@ export type NestResult = {
   exactTile: boolean;
   gripperApplied: boolean;
   trimApplied: boolean;
-  /** Folded 11×17 signature — not a 2-up letter cut. */
+  /** Folded signature — not a 2-up letter cut of the finish. */
   saddle?: boolean;
+  /** Open signature sheet (2× finish in one dimension). */
+  signature?: { w: number; h: number; doubled: "w" | "h" };
   sheetsToBuy: number;
   impressions: number;
   buyScore: number;
@@ -79,12 +89,20 @@ export type RouteStep = {
   confidence: "confident" | "fuzzy";
 };
 
+export type PressLine = {
+  role: "color" | "bw";
+  press: RouteStep;
+  nest: NestResult;
+};
+
 export type ProductionPlan = {
   job: JobInput;
   parsedFrom: "form" | "text" | "file";
   recommended: NestResult;
   alternatives: NestResult[];
   press: RouteStep;
+  /** Mixed color: Versant line + Accurio line. */
+  lines?: PressLine[];
   finishing: RouteStep[];
   alsoConsider: RouteStep[];
   why: string[];
