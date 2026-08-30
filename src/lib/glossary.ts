@@ -42,6 +42,10 @@ export const GLOSSARY = {
     label: "exact tile",
     def: "8.5×11 on 11×17 fits 2-up with no gripper/trim waste (one cut).",
   },
+  saddle: {
+    label: "saddle booklet",
+    def: "One 11×17 sheet folded (4 pages). Not letter 2-up cut on the Challenge.",
+  },
   substrate: {
     label: "substrate",
     def: "What you print on (paper, envelope, vinyl, garment, UV).",

@@ -3,6 +3,7 @@ import type { JobInput } from "./types";
 const BIND_WORD: Record<NonNullable<JobInput["bind"]>, string> = {
   none: "",
   staple: "stitch",
+  saddle: "saddle booklet",
   coil: "coil",
   drill: "drill",
   laminate: "laminate",
@@ -24,7 +25,9 @@ const COLOR_WORD: Record<JobInput["color"], string> = {
 };
 
 /** One line from the ticket fields so a phone user does not type a paragraph. */
-export function autoDescription(job: Pick<JobInput, "qty" | "finishW" | "finishH" | "color" | "sides" | "fold" | "bind" | "substrate">): string {
+export function autoDescription(
+  job: Pick<JobInput, "qty" | "finishW" | "finishH" | "color" | "sides" | "fold" | "bind" | "substrate" | "pages">,
+): string {
   const qty = Number.isFinite(job.qty) && job.qty > 0 ? job.qty : 1;
   const finishW = Number.isFinite(job.finishW) && job.finishW > 0 ? job.finishW : 8.5;
   const finishH = Number.isFinite(job.finishH) && job.finishH > 0 ? job.finishH : 11;
@@ -34,6 +37,14 @@ export function autoDescription(job: Pick<JobInput, "qty" | "finishW" | "finishH
     `${finishW}×${finishH}`,
     job.sides === 2 ? "2-sided" : "1-sided",
   ];
+  if (job.bind === "saddle") {
+    if (typeof job.pages === "number" && Number.isFinite(job.pages)) {
+      parts.push(`${job.pages}-page`);
+    }
+    parts.push("saddle booklet");
+    if (job.substrate && job.substrate !== "paper") parts.push(job.substrate);
+    return parts.join(" ");
+  }
   const fold = job.fold ? FOLD_WORD[job.fold] : "";
   if (fold) parts.push(fold);
   const bind = job.bind ? BIND_WORD[job.bind] : "";

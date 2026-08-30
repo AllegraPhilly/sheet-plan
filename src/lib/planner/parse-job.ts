@@ -77,10 +77,23 @@ export function parseJobText(description: string, fallback?: Partial<JobInput>):
 
   let bind: JobInput["bind"] = fallback?.bind ?? "none";
   if (/\b(coil|spiral)\b/.test(text)) bind = "coil";
-  else if (/\b(saddle|staple|booklet)\b/.test(text)) bind = "staple";
+  else if (/\b(saddle([\s-]?stitch|[\s-]?booklet)?|booklet)\b/.test(text)) bind = "saddle";
+  else if (/\b(staple|stitch)\b/.test(text)) bind = "staple";
   else if (/\b(3[\s-]?hole|drill)\b/.test(text)) bind = "drill";
   else if (/\blaminat/.test(text)) bind = "laminate";
   else if (/\bshrink/.test(text)) bind = "shrink";
+
+  let pages = fallback?.pages;
+  const pageMatch = text.match(/(\d{1,4})\s*[\s-]?pages?\b/);
+  if (pageMatch) pages = Number(pageMatch[1]);
+
+  let stockHint = fallback?.stockHint;
+  if (/cover|card\s*stock|100#|80#\s*c/.test(text)) stockHint = stockHint ?? "cover";
+
+  if (bind === "saddle") {
+    sides = 2;
+    fold = "half";
+  }
 
   const scannedOriginal = /\b(scan|original|hard copy)\b/.test(text);
 
@@ -93,6 +106,8 @@ export function parseJobText(description: string, fallback?: Partial<JobInput>):
     sides,
     fold,
     bind,
+    pages,
+    stockHint,
     substrate,
     scannedOriginal,
   };

@@ -253,6 +253,7 @@ function packOnFeed(
     exactTile,
     gripperApplied,
     trimApplied,
+    saddle: false,
     sheetsToBuy,
     impressions,
     buyScore,

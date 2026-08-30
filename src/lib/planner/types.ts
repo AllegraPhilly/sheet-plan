@@ -31,8 +31,10 @@ export type JobInput = {
   color: ColorPath;
   sides: 1 | 2;
   stockHint?: string;
-  bind?: "none" | "staple" | "coil" | "drill" | "laminate" | "shrink";
+  bind?: "none" | "staple" | "saddle" | "coil" | "drill" | "laminate" | "shrink";
   fold?: "none" | "half" | "tri" | "z" | "letter";
+  /** Booklet pages. Saddle requires a multiple of 4 (4, 8, 12, …). */
+  pages?: number;
   substrate?: "paper" | "vinyl" | "garment" | "envelope" | "uv";
   scannedOriginal?: boolean;
 };
@@ -50,6 +52,8 @@ export type NestResult = {
   exactTile: boolean;
   gripperApplied: boolean;
   trimApplied: boolean;
+  /** Folded 11×17 signature — not a 2-up letter cut. */
+  saddle?: boolean;
   sheetsToBuy: number;
   impressions: number;
   buyScore: number;

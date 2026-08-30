@@ -14,6 +14,7 @@ describe("glossary copy", () => {
     expect(GLOSSARY.gripper.def).toMatch(/0\.25 in/i);
     expect(GLOSSARY.trim.def).toMatch(/0\.125 in/i);
     expect(GLOSSARY.exactTile.def).toMatch(/8\.5×11 on 11×17/i);
+    expect(GLOSSARY.saddle.def).toMatch(/not letter 2-up cut/i);
     expect(GLOSSARY.substrate.def).toMatch(/paper, envelope, vinyl, garment, UV/i);
     expect(GLOSSARY.internal.def).toMatch(/not a customer site/i);
 

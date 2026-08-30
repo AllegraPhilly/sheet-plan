@@ -6,10 +6,12 @@ const SHEET = "#fff8ea";
 const PIECE = "#ffffff";
 const GRIPPER = "#f0d48a";
 const CUT = "#b42318";
+const FOLD = "#2a241c";
 
 function layoutAria(layout: SheetLayout, isRecommended: boolean): string {
   const who = isRecommended ? "recommended" : "other parent";
-  return `${layout.parent.label} parent, ${layout.nUp}-up ${who}. ${layout.caption} ${layout.cutTally.line}`;
+  const kind = layout.fold ? "saddle signature" : `${layout.nUp}-up`;
+  return `${layout.parent.label} parent, ${kind} ${who}. ${layout.caption} ${layout.cutTally.line}`;
 }
 
 function faceTrimLine(layout: SheetLayout): string {
@@ -34,7 +36,7 @@ export function SheetLayoutSvg({
   isRecommended: boolean;
 }) {
   const layout = layoutFromNest(finish, nest);
-  const { parent, pieces, cuts, gripper } = layout;
+  const { parent, pieces, cuts, gripper, fold } = layout;
   const padX = 0.55;
   const padTop = 2.25;
   const padBottom = 0.55;
@@ -50,7 +52,7 @@ export function SheetLayoutSvg({
         {parent.label}
         <span className="font-normal opacity-70">
           {" "}
-          · {layout.nUp}-up
+          · {layout.fold ? "saddle signature" : `${layout.nUp}-up`}
           {isRecommended ? " · recommended" : " · other parent"}
         </span>
         <span className="mt-1 block font-normal">{layout.caption}</span>
@@ -138,6 +140,31 @@ export function SheetLayoutSvg({
             vectorEffect="non-scaling-stroke"
           />
         ))}
+        {fold && (
+          <g>
+            <line
+              x1={fold.x1}
+              y1={fold.y1}
+              x2={fold.x2}
+              y2={fold.y2}
+              stroke={FOLD}
+              strokeWidth={3}
+              strokeDasharray="6 5"
+              strokeLinecap="square"
+              vectorEffect="non-scaling-stroke"
+            />
+            <text
+              x={(fold.x1 + fold.x2) / 2 + 0.35}
+              y={Math.min(fold.y1, fold.y2) + 1.1}
+              fill={INK}
+              fontSize={Math.min(0.55, parent.w * 0.045)}
+              fontWeight={800}
+              fontFamily="Barlow Condensed, sans-serif"
+            >
+              fold
+            </text>
+          </g>
+        )}
         {cuts.map((c) => {
           const midX = (c.x1 + c.x2) / 2;
           const midY = (c.y1 + c.y2) / 2;

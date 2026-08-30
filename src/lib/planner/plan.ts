@@ -2,6 +2,7 @@ import { machineById, neverRouteIds } from "../machines";
 import { emptyCuts } from "./cut-count";
 import { isClassicLetterTabloid, nestOnParent, rankParents } from "./nest";
 import { parseJobText } from "./parse-job";
+import { isCoverStock, isSaddleJob, nestSaddle, saddlePageError } from "./saddle";
 import {
   PARENTS,
   VERSANT_PLAN_MAX,
@@ -66,6 +67,17 @@ export function choosePress(job: JobInput): { press: RouteStep; also: RouteStep[
 
 export function finishingSteps(job: JobInput, recommendedNUp: number): RouteStep[] {
   const out: RouteStep[] = [];
+  if (isSaddleJob(job)) {
+    if (isCoverStock(job)) {
+      out.push(mustStep("graphic-whizard-creasemaster-plus-ts", "Crease cover stock before fold."));
+    }
+    out.push(mustStep("baumfolder-714", "Fold: half (saddle signature)."));
+    out.push(mustStep("salco-rapid-106e", "Saddle stitch on the 11×17 fold."));
+    if (job.scannedOriginal) {
+      out.unshift(mustStep("epson-expression-11000xl", "Scan original (tabloid flatbed)."));
+    }
+    return out;
+  }
   if (recommendedNUp > 1 || job.finishW < 8.49 || job.finishH < 10.9) {
     if (job.substrate === "paper") {
       out.push(mustStep("challenge-305-crt", "Cut parent to finish. 30.5 in knife, 3.5 in clamp."));
@@ -89,34 +101,56 @@ export function finishingSteps(job: JobInput, recommendedNUp: number): RouteStep
 }
 
 export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"]): ProductionPlan {
-  const ranked = job.substrate === "paper" ? rankParents(job) : [];
+  if (isSaddleJob(job)) {
+    const pageErr = saddlePageError(job.pages);
+    if (pageErr) throw new Error(pageErr);
+  }
+
+  const ranked =
+    job.substrate === "paper" && !isSaddleJob(job) ? rankParents(job) : [];
   const recommended =
-    ranked[0] ??
-    nestOnParent(job, PARENTS[0]) ??
-    ({
-      parent: PARENTS[0],
-      nUp: 1,
-      orientation: "same" as const,
-      sheetTurned: false,
-      needsFileRotate: false,
-      cols: 1,
-      rows: 1,
-      exactTile: false,
-      gripperApplied: false,
-      trimApplied: false,
-      sheetsToBuy: job.qty,
-      impressions: job.qty * job.sides,
-      buyScore: job.qty,
-      usableW: 8.5,
-      usableH: 11,
-      cuts: emptyCuts("Non-paper path — no parent buy."),
-    });
+    isSaddleJob(job) && job.substrate === "paper"
+      ? nestSaddle(job)
+      : ranked[0] ??
+        nestOnParent(job, PARENTS[0]) ??
+        ({
+          parent: PARENTS[0],
+          nUp: 1,
+          orientation: "same" as const,
+          sheetTurned: false,
+          needsFileRotate: false,
+          cols: 1,
+          rows: 1,
+          exactTile: false,
+          gripperApplied: false,
+          trimApplied: false,
+          saddle: false,
+          sheetsToBuy: job.qty,
+          impressions: job.qty * job.sides,
+          buyScore: job.qty,
+          usableW: 8.5,
+          usableH: 11,
+          cuts: emptyCuts("Non-paper path — no parent buy."),
+        });
 
   const { press, also } = choosePress(job);
   const finishing = finishingSteps(job, recommended.nUp);
 
   const why: string[] = [];
-  if (job.substrate === "paper") {
+  if (isSaddleJob(job) && job.substrate === "paper") {
+    const pages = job.pages!;
+    why.push(
+      `Buy ${recommended.sheetsToBuy} parent 11×17 (${pages} pages ÷ 4 = ${pages / 4} sheets each × ${job.qty} booklets). Folded signature, not 8.5×11 2-up cut on the Challenge.`,
+    );
+    why.push(
+      `${recommended.impressions} duplex clicks on ${press.name} (one 11×17 sheet = 4 pages).`,
+    );
+    why.push("Fold half on Baumfolder 714. Saddle stitch on Salco Rapid 106E.");
+    if (isCoverStock(job)) {
+      why.push("Cover stock — crease on Graphic Whizard before fold.");
+    }
+    why.push(recommended.cuts.why);
+  } else if (job.substrate === "paper") {
     why.push(
       `Buy ${recommended.sheetsToBuy} parent ${recommended.parent.label} (${recommended.nUp}-up) — cheapest parent to purchase, not merely what is on the floor.`,
     );
