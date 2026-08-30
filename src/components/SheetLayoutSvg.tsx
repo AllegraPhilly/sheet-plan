@@ -70,7 +70,8 @@ export function SheetLayoutSvg({
           height={parent.h}
           fill={SHEET}
           stroke={INK}
-          strokeWidth={0.12}
+          strokeWidth={3}
+          vectorEffect="non-scaling-stroke"
         />
         {gripper && (
           <g>
@@ -81,7 +82,8 @@ export function SheetLayoutSvg({
               height={gripper.h}
               fill={GRIPPER}
               stroke={INK}
-              strokeWidth={0.04}
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
             />
             <text
               x={gripper.x + gripper.w / 2}
@@ -106,7 +108,8 @@ export function SheetLayoutSvg({
             height={p.finish.h}
             fill={PIECE}
             stroke={INK}
-            strokeWidth={0.08}
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
           />
         ))}
         {cuts.map((c, i) => (
@@ -117,9 +120,10 @@ export function SheetLayoutSvg({
             x2={c.x2}
             y2={c.y2}
             stroke={CUT}
-            strokeWidth={0.14}
-            strokeDasharray="0.35 0.22"
+            strokeWidth={3}
+            strokeDasharray="10 7"
             strokeLinecap="square"
+            vectorEffect="non-scaling-stroke"
           />
         ))}
       </svg>
