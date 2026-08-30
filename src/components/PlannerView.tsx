@@ -13,6 +13,7 @@ import {
   upsertSavedJob,
   type SavedJob,
 } from "@/lib/planner/saved-jobs";
+import { commitNumberField, parseNumberDraft } from "@/lib/planner/num-field";
 import { autoDescription, defaultTicket, todayISO } from "@/lib/planner/ticket-text";
 import type { ColorPath, JobInput, ProductionPlan } from "@/lib/planner/types";
 import type { GlossaryKey } from "@/lib/glossary";
@@ -211,7 +212,7 @@ export function PlannerView() {
           </label>
 
           <div className="grid grid-cols-2 gap-3">
-            <Num label="Qty" value={job.qty} onChange={(n) => patch("qty", Math.max(1, n))} />
+            <Num label="Qty" value={job.qty} min={1} onChange={(n) => patch("qty", n)} />
             <Num
               label="Finish W (in)"
               term="finish"
@@ -415,14 +416,25 @@ function Num({
   value,
   onChange,
   step = 1,
+  min = 0,
   term,
 }: {
   label: string;
   value: number;
   onChange: (n: number) => void;
   step?: number;
+  min?: number;
   term?: GlossaryKey;
 }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? (Number.isFinite(value) ? String(value) : "");
+
+  function commit() {
+    const fallback = Number.isFinite(value) ? value : min;
+    onChange(commitNumberField(draft ?? shown, { min, fallback }));
+    setDraft(null);
+  }
+
   return (
     <label className="text-sm font-semibold">
       {term ? <TermLabel term={term}>{label}</TermLabel> : label}
@@ -431,8 +443,14 @@ function Num({
         inputMode="decimal"
         step={step}
         className={fieldClass}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        value={shown}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setDraft(raw);
+          const parsed = parseNumberDraft(raw);
+          if (parsed !== null) onChange(parsed);
+        }}
+        onBlur={commit}
       />
     </label>
   );
