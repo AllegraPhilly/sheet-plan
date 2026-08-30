@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nestOnParent } from "@/lib/planner/nest";
+import { nestOnParent, rankParents, repeatCaption } from "@/lib/planner/nest";
 import { layoutFromNest } from "@/lib/planner/sheet-layout";
 import { GRIPPER_IN, PARENTS, TRIM_IN, type JobInput } from "@/lib/planner/types";
 
@@ -24,29 +24,32 @@ function nestOf(finish: { w: number; h: number }, parentId: (typeof PARENTS)[num
 }
 
 describe("sheet layout geometry", () => {
-  it("letter on tabloid is exact 2-up with one horizontal Challenge cut", () => {
+  it("letter on tabloid is same-way 2-across on a turned 17×11 feed, one numbered cut", () => {
     const nest = nestOf({ w: 8.5, h: 11 }, "tabloid");
     const layout = layoutFromNest({ finishW: 8.5, finishH: 11 }, nest);
 
     expect(layout.nUp).toBe(2);
-    expect(layout.nUp).toBe(nest.nUp);
     expect(layout.pieces).toHaveLength(2);
     expect(layout.exactTile).toBe(true);
     expect(layout.gripper).toBeNull();
     expect(layout.trimApplied).toBe(false);
-    expect(layout.orientation).toBe("rotated");
-    expect(layout.pieceW).toBe(11);
-    expect(layout.pieceH).toBe(8.5);
-    expect(layout.parent).toMatchObject({ w: 11, h: 17, label: "11×17" });
+    expect(layout.orientation).toBe("same");
+    expect(layout.sheetTurned).toBe(true);
+    expect(layout.needsFileRotate).toBe(false);
+    expect(layout.pieceW).toBe(8.5);
+    expect(layout.pieceH).toBe(11);
+    expect(layout.parent).toMatchObject({ w: 17, h: 11, label: "11×17" });
 
     expect(layout.cuts).toHaveLength(1);
-    expect(layout.cuts[0]).toEqual({ x1: 0, y1: 8.5, x2: 11, y2: 8.5 });
-
-    expect(layout.pieces[0].finish).toEqual({ x: 0, y: 0, w: 11, h: 8.5 });
-    expect(layout.pieces[1].finish).toEqual({ x: 0, y: 8.5, w: 11, h: 8.5 });
+    expect(layout.cuts[0]).toMatchObject({ x1: 8.5, y1: 0, x2: 8.5, y2: 11, n: 1, axis: "v" });
+    expect(layout.pieces[0].finish).toEqual({ x: 0, y: 0, w: 8.5, h: 11 });
+    expect(layout.pieces[1].finish).toEqual({ x: 8.5, y: 0, w: 8.5, h: 11 });
+    expect(layout.caption).toMatch(/Repeat 2-up, all same way/);
+    expect(layout.caption).toMatch(/Sheet turned for feed/);
+    expect(layout.caption).toMatch(/Cut 1: split to 8\.5×11/);
   });
 
-  it("6×9 on 12×18 is exact 4-up with a 2×2 cut grid", () => {
+  it("6×9 on 12×18 is exact 4-up with strip cut 1 then strip-to-finish cut 2", () => {
     const nest = nestOf({ w: 6, h: 9 }, "12x18", 5000);
     const layout = layoutFromNest({ finishW: 6, finishH: 9 }, nest);
 
@@ -57,14 +60,17 @@ describe("sheet layout geometry", () => {
     expect(layout.rows).toBe(2);
     expect(layout.exactTile).toBe(true);
     expect(layout.gripper).toBeNull();
-    expect(layout.trimApplied).toBe(false);
     expect(layout.orientation).toBe("same");
+    expect(layout.needsFileRotate).toBe(false);
     expect(layout.parent.label).toBe("12×18");
 
-    expect(layout.cuts).toEqual([
-      { x1: 6, y1: 0, x2: 6, y2: 18 },
-      { x1: 0, y1: 9, x2: 12, y2: 9 },
+    expect(layout.cuts.map((c) => ({ n: c.n, axis: c.axis, x: c.x1, y: c.y1 }))).toEqual([
+      { n: 1, axis: "h", x: 0, y: 9 },
+      { n: 2, axis: "v", x: 6, y: 0 },
     ]);
+    expect(layout.caption).toBe(
+      "Repeat 4-up, all same way. Cut 1: split to strips. Cut 2: cut strips to 6×9.",
+    );
     expect(layout.pieces.map((p) => p.finish)).toEqual([
       { x: 0, y: 0, w: 6, h: 9 },
       { x: 6, y: 0, w: 6, h: 9 },
@@ -83,14 +89,14 @@ describe("sheet layout geometry", () => {
     }
   });
 
-  it("6×9 on 13×19 keeps nest 4-up and shows gripper plus trim inset", () => {
+  it("6×9 on 13×19 keeps 4-up same-way with even gutters, gripper, numbered through-cuts", () => {
     const nest = nestOf({ w: 6, h: 9 }, "13x19", 5000);
     const layout = layoutFromNest({ finishW: 6, finishH: 9 }, nest);
 
     expect(nest.nUp).toBe(4);
     expect(nest.exactTile).toBe(false);
+    expect(nest.needsFileRotate).toBe(false);
     expect(nest.gripperApplied).toBe(true);
-    expect(nest.trimApplied).toBe(true);
     expect(layout.nUp).toBe(4);
     expect(layout.pieces).toHaveLength(4);
     expect(layout.gripper).toEqual({
@@ -99,16 +105,18 @@ describe("sheet layout geometry", () => {
       w: 13,
       h: GRIPPER_IN,
     });
-    expect(layout.trimApplied).toBe(true);
     expect(layout.tileW).toBeCloseTo(6 + TRIM_IN * 2);
     expect(layout.tileH).toBeCloseTo(9 + TRIM_IN * 2);
-    expect(layout.pieces[0].finish).toEqual({
-      x: TRIM_IN,
-      y: TRIM_IN,
-      w: 6,
-      h: 9,
-    });
+    const packedW = 2 * layout.tileW;
+    const packedH = 2 * layout.tileH;
+    expect(layout.originX).toBeCloseTo((13 - packedW) / 2);
+    expect(layout.originY).toBeCloseTo((19 - GRIPPER_IN - packedH) / 2);
+    expect(layout.pieces[0].finish.x).toBeCloseTo(layout.originX + TRIM_IN);
+    expect(layout.pieces[0].finish.y).toBeCloseTo(layout.originY + TRIM_IN);
     expect(layout.cuts).toHaveLength(2);
+    expect(layout.cuts[0].n).toBe(1);
+    expect(layout.cuts[1].n).toBe(2);
+    expect(layout.cuts[0].x2 - layout.cuts[0].x1).toBeCloseTo(13);
   });
 
   it("same-size letter is 1-up with no cut lines", () => {
@@ -118,6 +126,43 @@ describe("sheet layout geometry", () => {
     expect(layout.pieces).toHaveLength(1);
     expect(layout.cuts).toHaveLength(0);
     expect(layout.gripper).toBeNull();
+    expect(layout.needsFileRotate).toBe(false);
     expect(layout.pieces[0].finish).toEqual({ x: 0, y: 0, w: 8.5, h: 11 });
+  });
+});
+
+describe("same-way recommend vs file rotate", () => {
+  it("does not recommend a nest that only wins by rotating the file", () => {
+    const letter = rankParents(job());
+    expect(letter[0].needsFileRotate).toBe(false);
+    expect(letter[0].orientation).toBe("same");
+
+    const sixByNine = rankParents(job({ finishW: 6, finishH: 9, qty: 5000 }));
+    expect(sixByNine[0].parent.id).toBe("12x18");
+    expect(sixByNine[0].needsFileRotate).toBe(false);
+    expect(sixByNine[0].nUp).toBe(4);
+  });
+
+  it("letter on 12×18 is 2-up by turning the sheet, not rotating art", () => {
+    const nest = nestOf({ w: 8.5, h: 11 }, "12x18");
+    expect(nest.nUp).toBe(2);
+    expect(nest.orientation).toBe("same");
+    expect(nest.needsFileRotate).toBe(false);
+    expect(nest.sheetTurned).toBe(true);
+    expect(nest.cols).toBe(2);
+    expect(nest.rows).toBe(1);
+  });
+
+  it("file-rotate nest is labeled for prepress when asked", () => {
+    const parent = PARENTS.find((p) => p.id === "tabloid")!;
+    const rotated = nestOnParent(job(), parent, { allowFileRotate: true });
+    expect(rotated).toBeTruthy();
+    // Same n-up is available same-way, so default pick is not file-rotate.
+    const same = nestOnParent(job(), parent);
+    expect(same?.needsFileRotate).toBe(false);
+    expect(same?.nUp).toBe(rotated!.nUp);
+    expect(
+      repeatCaption({ w: 8.5, h: 11 }, { ...rotated!, needsFileRotate: true, orientation: "rotated" }),
+    ).toMatch(/Prepress would have to rotate the file/);
   });
 });

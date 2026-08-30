@@ -36,6 +36,11 @@ describe("classic letter plan", () => {
     expect(plan!.recommended.parent.id).toBe("tabloid");
     expect(plan!.recommended.nUp).toBe(2);
     expect(plan!.recommended.exactTile).toBe(true);
+    expect(plan!.recommended.orientation).toBe("same");
+    expect(plan!.recommended.sheetTurned).toBe(true);
+    expect(plan!.recommended.needsFileRotate).toBe(false);
+    expect(plan!.recommended.cols).toBe(2);
+    expect(plan!.recommended.rows).toBe(1);
     expect(plan!.recommended.cuts.machineId).toBe("challenge-305-crt");
     expect(plan!.recommended.cuts.clicks).toBe(1);
     expect(plan!.press.machineId).toBe("versant-4100");
@@ -46,6 +51,8 @@ describe("classic letter plan", () => {
     expect(plan.recommended.parent.id).toBe("tabloid");
     expect(plan.recommended.nUp).toBe(2);
     expect(plan.recommended.exactTile).toBe(true);
+    expect(plan.recommended.orientation).toBe("same");
+    expect(plan.recommended.needsFileRotate).toBe(false);
     expect(plan.recommended.gripperApplied).toBe(false);
     expect(plan.recommended.cuts.machineId).toBe("challenge-305-crt");
     expect(plan.recommended.cuts.clicks).toBe(1);
@@ -58,8 +65,10 @@ describe("classic letter plan", () => {
   it("recommends cheapest parent to BUY (buyScore), not only floor stock", () => {
     const ranked = rankParents(letterJob());
     expect(ranked[0].parent.id).toBe("tabloid");
-    for (const row of ranked.slice(1)) {
-      expect(row.buyScore).toBeGreaterThanOrEqual(ranked[0].buyScore);
+    expect(ranked[0].needsFileRotate).toBe(false);
+    const sameWay = ranked.filter((n) => !n.needsFileRotate);
+    for (const row of sameWay.slice(1)) {
+      expect(row.buyScore).toBeGreaterThanOrEqual(sameWay[0].buyScore);
     }
     const letterOnly = nestOnParent(letterJob(), PARENTS[0]);
     expect(letterOnly?.impressions).toBe(500);
@@ -136,7 +145,7 @@ describe("exact-tile helper", () => {
     expect(isExactTile({ w: 8.5, h: 11 }, PARENTS[1])).toBe(true);
     expect(isExactTile({ w: 5, h: 7 }, PARENTS[1])).toBe(false);
     const layout = exactTileLayout({ w: 8.5, h: 11 }, PARENTS[1]);
-    expect(layout).toEqual({ cols: 1, rows: 2, nUp: 2, orientation: "rotated" });
+    expect(layout).toEqual({ cols: 2, rows: 1, nUp: 2, orientation: "same", sheetTurned: true });
   });
 
   it("6×9 on 12×18 is an exact 2×2 tile — no gripper/trim, 4-up", () => {
@@ -149,6 +158,7 @@ describe("exact-tile helper", () => {
       rows: 2,
       nUp: 4,
       orientation: "same",
+      sheetTurned: false,
     });
 
     const nest = nestOnParent(
@@ -194,6 +204,8 @@ describe("exact-tile helper", () => {
     expect(ranked[0].parent.id).toBe("12x18");
     expect(ranked[0].nUp).toBe(4);
     expect(ranked[0].exactTile).toBe(true);
+    expect(ranked[0].needsFileRotate).toBe(false);
+    expect(ranked[0].orientation).toBe("same");
     expect(ranked[0].buyScore).toBeCloseTo(1250 * ((12 * 18) / (8.5 * 11)), 5);
 
     const nest13 = ranked.find((n) => n.parent.id === "13x19")!;
@@ -217,6 +229,7 @@ describe("exact-tile helper", () => {
       rows: 2,
       nUp: 4,
       orientation: "same",
+      sheetTurned: false,
     });
     const nest = nestOnParent(letterJob({ finishW: 5.5, finishH: 8.5, qty: 400 }), tabloid);
     expect(nest!.nUp).toBe(4);

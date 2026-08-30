@@ -96,6 +96,8 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
       parent: PARENTS[0],
       nUp: 1,
       orientation: "same" as const,
+      sheetTurned: false,
+      needsFileRotate: false,
       cols: 1,
       rows: 1,
       exactTile: false,
@@ -127,13 +129,18 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
     if (recommended.exactTile) {
       if (isClassicLetterTabloid({ w: job.finishW, h: job.finishH }, recommended.parent)) {
         why.push(
-          "Classic: finish 8.5×11 on 11×17 is an exact 2-up tile — no gripper, no trim waste. Challenge 305 CRT one click vs two on a larger parent.",
+          "Classic: finish 8.5×11 on 11×17 is an exact 2-up tile — turn the sheet, art stays the same way. No gripper, no trim. Challenge 305 CRT one click vs two on a larger parent.",
         );
       } else {
         why.push(
-          `Exact ${recommended.nUp}-up tile on ${recommended.parent.label} — no gripper, no trim waste.`,
+          `Exact ${recommended.nUp}-up tile on ${recommended.parent.label} — no gripper, no trim waste. Repeat gang, all same way as the file.`,
         );
       }
+    } else if (recommended.nUp > 1 && !recommended.needsFileRotate) {
+      why.push("Repeat gang — every piece the same way as the file. Turn the sheet if needed; do not rotate art.");
+    }
+    if (recommended.needsFileRotate) {
+      why.push("This nest needs the file rotated 90° — extra prepress work. Prefer a same-way parent when one fits.");
     }
     if (recommended.nUp > 1) {
       why.push(

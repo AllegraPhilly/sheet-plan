@@ -28,32 +28,55 @@ export type ExactTileLayout = {
   rows: number;
   nUp: number;
   orientation: "same" | "rotated";
+  sheetTurned: boolean;
 };
+
+export function feedSize(parent: ParentSheet, sheetTurned: boolean): { w: number; h: number } {
+  return sheetTurned ? { w: parent.h, h: parent.w } : { w: parent.w, h: parent.h };
+}
 
 /**
  * Finish tiles the parent on an integer grid with no leftover.
- * Letter on tabloid (1×2), 6×9 on 12×18 (2×2), 5.5×8.5 on 11×17 (2×2).
- * 1-up same-size is not a tile — that is handled separately.
+ * Prefers pieces the same way as the file (turn the sheet) over rotating art.
+ * Letter on tabloid: 17×11 feed, 2-across. 6×9 on 12×18: 2×2. 5.5×8.5 on 11×17: 2×2.
  */
+export function exactTileOnFeed(
+  finish: { w: number; h: number },
+  parent: ParentSheet,
+  sheetTurned: boolean,
+  orientation: NestResult["orientation"],
+): ExactTileLayout | null {
+  const feed = feedSize(parent, sheetTurned);
+  const pieceW = orientation === "same" ? finish.w : finish.h;
+  const pieceH = orientation === "same" ? finish.h : finish.w;
+  if (pieceW <= 0 || pieceH <= 0) return null;
+  const cols = Math.round(feed.w / pieceW);
+  const rows = Math.round(feed.h / pieceH);
+  const nUp = cols * rows;
+  if (cols < 1 || rows < 1 || nUp < 2) return null;
+  if (approx(cols * pieceW, feed.w) && approx(rows * pieceH, feed.h)) {
+    return { cols, rows, nUp, orientation, sheetTurned };
+  }
+  return null;
+}
+
 export function exactTileLayout(
   finish: { w: number; h: number },
   parent: ParentSheet,
 ): ExactTileLayout | null {
   const candidates: ExactTileLayout[] = [];
-  for (const orientation of ["same", "rotated"] as const) {
-    const pieceW = orientation === "same" ? finish.w : finish.h;
-    const pieceH = orientation === "same" ? finish.h : finish.w;
-    if (pieceW <= 0 || pieceH <= 0) continue;
-    const cols = Math.round(parent.w / pieceW);
-    const rows = Math.round(parent.h / pieceH);
-    const nUp = cols * rows;
-    if (cols < 1 || rows < 1 || nUp < 2) continue;
-    if (approx(cols * pieceW, parent.w) && approx(rows * pieceH, parent.h)) {
-      candidates.push({ cols, rows, nUp, orientation });
+  for (const sheetTurned of [false, true] as const) {
+    for (const orientation of ["same", "rotated"] as const) {
+      const tile = exactTileOnFeed(finish, parent, sheetTurned, orientation);
+      if (tile) candidates.push(tile);
     }
   }
   if (candidates.length === 0) return null;
-  candidates.sort((a, b) => b.nUp - a.nUp || (a.orientation === "same" ? -1 : 1));
+  candidates.sort((a, b) => {
+    if (a.nUp !== b.nUp) return b.nUp - a.nUp;
+    if (a.orientation !== b.orientation) return a.orientation === "same" ? -1 : 1;
+    return Number(a.sheetTurned) - Number(b.sheetTurned);
+  });
   return candidates[0];
 }
 
@@ -77,66 +100,159 @@ function pack(
   return { cols: Math.max(0, cols), rows: Math.max(0, rows), nUp };
 }
 
-export function nestOnParent(job: JobInput, parent: ParentSheet): NestResult | null {
-  const finish = { w: job.finishW, h: job.finishH };
-  const tile = exactTileLayout(finish, parent);
-  const exactTile = tile !== null;
+export type NestOptions = {
+  /** When false (default), only same-way-as-file nests. Sheet may still turn. */
+  allowFileRotate?: boolean;
+};
+
+function pieceSize(
+  finish: { w: number; h: number },
+  orientation: NestResult["orientation"],
+  trimApplied: boolean,
+): { w: number; h: number } {
+  const rawW = orientation === "same" ? finish.w : finish.h;
+  const rawH = orientation === "same" ? finish.h : finish.w;
+  const pad = trimApplied ? TRIM_IN * 2 : 0;
+  return { w: rawW + pad, h: rawH + pad };
+}
+
+function finishLabel(finish: { w: number; h: number }): string {
+  return `${finish.w}×${finish.h}`;
+}
+
+/** Operator line for prepress / Versant / Challenge. Ticket visual only — not a JDF export. */
+export function repeatCaption(
+  finish: { w: number; h: number },
+  nest: Pick<
+    NestResult,
+    "nUp" | "cols" | "rows" | "sheetTurned" | "needsFileRotate" | "exactTile"
+  >,
+): string {
+  const size = finishLabel(finish);
+  if (nest.nUp <= 1) {
+    return nest.needsFileRotate
+      ? "1-up, file rotated 90°. Prepress would have to rotate the file."
+      : "1-up, same as the file. No parent cut.";
+  }
+  const head = nest.needsFileRotate
+    ? `Repeat ${nest.nUp}-up, file rotated 90°. Prepress would have to rotate the file.`
+    : `Repeat ${nest.nUp}-up, all same way.`;
+  const sheet = nest.sheetTurned && !nest.needsFileRotate ? " Sheet turned for feed." : "";
+  const bothAxes = nest.cols > 1 && nest.rows > 1;
+  if (!bothAxes) {
+    return `${head}${sheet} Cut 1: split to ${size}.`;
+  }
+  return `${head}${sheet} Cut 1: split to strips. Cut 2: cut strips to ${size}.`;
+}
+
+function cutPlan(
+  finish: { w: number; h: number },
+  parent: ParentSheet,
+  nest: Pick<
+    NestResult,
+    "nUp" | "cols" | "rows" | "exactTile" | "sheetTurned" | "needsFileRotate"
+  >,
+  sameSize: boolean,
+): NestResult["cuts"] {
+  if (sameSize || nest.nUp === 1) {
+    return {
+      machineId: "challenge-305-crt",
+      clicks: 0,
+      why: repeatCaption(finish, nest),
+    };
+  }
+  if (nest.exactTile && nest.nUp === 2 && isClassicLetterTabloid(finish, parent)) {
+    return {
+      machineId: "challenge-305-crt",
+      clicks: 1,
+      why: `${repeatCaption(finish, nest)} One click vs two on a larger parent.`,
+    };
+  }
+  const clicks = nest.nUp <= 2 ? 1 : nest.nUp <= 4 ? 2 : 3;
+  const extra = nest.exactTile
+    ? ` Exact ${nest.nUp}-up tile — no gripper, no trim.`
+    : " 30.5 in knife.";
+  return {
+    machineId: "challenge-305-crt",
+    clicks,
+    why: `${repeatCaption(finish, nest)}${extra}`,
+  };
+}
+
+function compareNests(a: NestResult, b: NestResult): number {
+  if (a.buyScore !== b.buyScore) return a.buyScore - b.buyScore;
+  if (a.impressions !== b.impressions) return a.impressions - b.impressions;
+  if (a.needsFileRotate !== b.needsFileRotate) return a.needsFileRotate ? 1 : -1;
+  if (a.cuts.clicks !== b.cuts.clicks) return a.cuts.clicks - b.cuts.clicks;
+  if (a.sheetTurned !== b.sheetTurned) return a.sheetTurned ? 1 : -1;
+  return a.parent.w * a.parent.h - b.parent.w * b.parent.h;
+}
+
+function packOnFeed(
+  finish: { w: number; h: number },
+  parent: ParentSheet,
+  sheetTurned: boolean,
+  orientation: NestResult["orientation"],
+  job: JobInput,
+): NestResult | null {
+  const feed = feedSize(parent, sheetTurned);
   const sameSize = dimsMatch(finish, parent);
+  const tile = exactTileOnFeed(finish, parent, sheetTurned, orientation);
+  const useTile = tile !== null;
 
   let gripperApplied = false;
   let trimApplied = false;
-  let usableW = parent.w;
-  let usableH = parent.h;
-  let pieceW = finish.w;
-  let pieceH = finish.h;
+  let usableW = feed.w;
+  let usableH = feed.h;
+  let cols = 0;
+  let rows = 0;
+  let nUp = 0;
+  let exactTile = false;
 
-  if (exactTile || sameSize) {
-    gripperApplied = false;
-    trimApplied = false;
+  if (useTile) {
+    exactTile = true;
+    cols = tile.cols;
+    rows = tile.rows;
+    nUp = tile.nUp;
+  } else if (sameSize && orientation === "same" && !sheetTurned && approx(finish.w, parent.w)) {
+    cols = 1;
+    rows = 1;
+    nUp = 1;
+  } else if (sameSize && orientation === "same" && sheetTurned && approx(finish.w, parent.h)) {
+    cols = 1;
+    rows = 1;
+    nUp = 1;
+  } else if (sameSize && orientation === "rotated" && !sheetTurned && !approx(finish.w, parent.w)) {
+    cols = 1;
+    rows = 1;
+    nUp = 1;
   } else {
     gripperApplied = true;
     trimApplied = true;
-    usableH = parent.h - GRIPPER_IN;
-    pieceW = finish.w + TRIM_IN * 2;
-    pieceH = finish.h + TRIM_IN * 2;
+    usableH = feed.h - GRIPPER_IN;
+    const piece = pieceSize(finish, orientation, true);
+    const packed = pack(piece.w, piece.h, usableW, usableH);
+    cols = packed.cols;
+    rows = packed.rows;
+    nUp = packed.nUp;
   }
 
-  const same = pack(pieceW, pieceH, usableW, usableH);
-  const rotated = pack(pieceH, pieceW, usableW, usableH);
+  if (nUp < 1) return null;
 
-  let best = same;
-  let orientation: NestResult["orientation"] = "same";
-  if (rotated.nUp > same.nUp) {
-    best = rotated;
-    orientation = "rotated";
-  }
-
-  if (tile) {
-    best = { cols: tile.cols, rows: tile.rows, nUp: tile.nUp };
-    orientation = tile.orientation;
-    usableW = parent.w;
-    usableH = parent.h;
-  }
-
-  if (sameSize) {
-    best = { cols: 1, rows: 1, nUp: 1 };
-    orientation = approx(finish.w, parent.w) ? "same" : "rotated";
-  }
-
-  if (best.nUp < 1) return null;
-
-  const sheetsToBuy = Math.ceil(job.qty / best.nUp);
+  const sheetsToBuy = Math.ceil(job.qty / nUp);
   const impressions = sheetsToBuy * job.sides;
   const buyScore = sheetsToBuy * parent.buyWeight;
-
-  const cuts = cutPlan(finish, parent, best.nUp, exactTile, sameSize);
+  const needsFileRotate = orientation === "rotated";
+  const nestBits = { nUp, cols, rows, exactTile, sheetTurned, needsFileRotate };
 
   return {
     parent,
-    nUp: best.nUp,
+    nUp,
     orientation,
-    cols: best.cols,
-    rows: best.rows,
+    sheetTurned,
+    needsFileRotate,
+    cols,
+    rows,
     exactTile,
     gripperApplied,
     trimApplied,
@@ -145,57 +261,65 @@ export function nestOnParent(job: JobInput, parent: ParentSheet): NestResult | n
     buyScore,
     usableW,
     usableH,
-    cuts,
+    cuts: cutPlan(finish, parent, nestBits, sameSize && nUp === 1),
   };
 }
 
-function cutPlan(
-  finish: { w: number; h: number },
+function pickBest(candidates: NestResult[]): NestResult | null {
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => {
+    if (a.nUp !== b.nUp) return b.nUp - a.nUp;
+    if (a.needsFileRotate !== b.needsFileRotate) return a.needsFileRotate ? 1 : -1;
+    if (a.exactTile !== b.exactTile) return a.exactTile ? -1 : 1;
+    if (a.sheetTurned !== b.sheetTurned) return a.sheetTurned ? 1 : -1;
+    return 0;
+  });
+  return candidates[0];
+}
+
+export function nestOnParent(
+  job: JobInput,
   parent: ParentSheet,
-  nUp: number,
-  exactTile: boolean,
-  sameSize: boolean,
-): NestResult["cuts"] {
-  if (sameSize || nUp === 1) {
-    return {
-      machineId: "challenge-305-crt",
-      clicks: 0,
-      why: "Run as finish size — no parent cut.",
-    };
+  opts: NestOptions = {},
+): NestResult | null {
+  const finish = { w: job.finishW, h: job.finishH };
+  const allowFileRotate = opts.allowFileRotate === true;
+  const orientations: NestResult["orientation"][] = allowFileRotate
+    ? ["same", "rotated"]
+    : ["same"];
+
+  const candidates: NestResult[] = [];
+  for (const sheetTurned of [false, true] as const) {
+    for (const orientation of orientations) {
+      const nest = packOnFeed(finish, parent, sheetTurned, orientation, job);
+      if (nest) candidates.push(nest);
+    }
   }
-  if (exactTile && nUp === 2 && isClassicLetterTabloid(finish, parent)) {
-    return {
-      machineId: "challenge-305-crt",
-      clicks: 1,
-      why: "One Challenge 305 CRT click splits 11×17 into two 8.5×11 (one click vs two on a larger parent).",
-    };
-  }
-  if (exactTile) {
-    const clicks = nUp <= 2 ? 1 : nUp <= 4 ? 2 : 3;
-    return {
-      machineId: "challenge-305-crt",
-      clicks,
-      why: `Exact ${nUp}-up tile on ${parent.label} (${nUp === 4 ? "2-across / 2-down" : `${nUp}-up`}) — no gripper, no trim. ${clicks} Challenge 305 CRT click${clicks === 1 ? "" : "s"}.`,
-    };
-  }
-  const clicks = nUp <= 2 ? 1 : nUp <= 4 ? 2 : 3;
-  return {
-    machineId: "challenge-305-crt",
-    clicks,
-    why: `${nUp}-up on ${parent.label} → ${clicks} Challenge 305 CRT click${clicks === 1 ? "" : "s"} (30.5 in knife).`,
-  };
+  return pickBest(candidates);
+}
+
+export function nestKey(nest: NestResult): string {
+  return `${nest.parent.id}:${nest.needsFileRotate ? "rotate" : "same"}:${nest.sheetTurned ? "turned" : "catalog"}`;
 }
 
 export function rankParents(job: JobInput): NestResult[] {
-  const nests = PARENTS.map((p) => nestOnParent(job, p)).filter(
+  const sameWay = PARENTS.map((p) => nestOnParent(job, p, { allowFileRotate: false })).filter(
     (n): n is NestResult => n !== null,
   );
-  return nests.sort((a, b) => {
-    if (a.buyScore !== b.buyScore) return a.buyScore - b.buyScore;
-    if (a.impressions !== b.impressions) return a.impressions - b.impressions;
-    if (a.cuts.clicks !== b.cuts.clicks) return a.cuts.clicks - b.cuts.clicks;
-    return a.parent.w * a.parent.h - b.parent.w * b.parent.h;
-  });
+  sameWay.sort(compareNests);
+
+  const extras: NestResult[] = [];
+  for (const p of PARENTS) {
+    const same = sameWay.find((n) => n.parent.id === p.id);
+    const withRotate = nestOnParent(job, p, { allowFileRotate: true });
+    if (withRotate?.needsFileRotate && (!same || withRotate.nUp > same.nUp)) {
+      extras.push(withRotate);
+    }
+  }
+  extras.sort(compareNests);
+
+  if (sameWay.length === 0) return extras;
+  return [...sameWay, ...extras];
 }
 
 export function allParents(): ParentSheet[] {
