@@ -1,12 +1,12 @@
 import { layoutFromNest, type SheetLayout } from "@/lib/planner/sheet-layout";
 import type { JobInput, NestResult } from "@/lib/planner/types";
 
-const INK = "#1a1612";
-const SHEET = "#fff8ea";
+const INK = "#1c1428";
+const SHEET = "#ffffff";
 const PIECE = "#ffffff";
-const GRIPPER = "#f0d48a";
-const CUT = "#b42318";
-const FOLD = "#2a241c";
+const GRIPPER = "#fcba30";
+const CUT = "#ee3e42";
+const FOLD = "#522e90";
 
 function layoutAria(layout: SheetLayout, isRecommended: boolean): string {
   const who = isRecommended ? "recommended" : "other parent";
@@ -76,7 +76,7 @@ export function SheetLayoutSvg({
           fill={INK}
           fontSize={titleSize}
           fontWeight={800}
-          fontFamily="Barlow Condensed, sans-serif"
+          fontFamily="Roboto, sans-serif"
         >
           {parent.label}
         </text>
@@ -87,7 +87,7 @@ export function SheetLayoutSvg({
           fill={INK}
           fontSize={totalSize}
           fontWeight={800}
-          fontFamily="Barlow Condensed, sans-serif"
+          fontFamily="Roboto, sans-serif"
         >
           {`Cut count: ${layout.cutTally.clicks}`}
         </text>
@@ -121,7 +121,7 @@ export function SheetLayoutSvg({
               fill={INK}
               fontSize={Math.min(0.22, gripper.h * 0.7)}
               fontWeight={700}
-              fontFamily="IBM Plex Sans, sans-serif"
+              fontFamily="Roboto, sans-serif"
             >
               gripper
             </text>
@@ -159,7 +159,7 @@ export function SheetLayoutSvg({
               fill={INK}
               fontSize={Math.min(0.55, parent.w * 0.045)}
               fontWeight={800}
-              fontFamily="Barlow Condensed, sans-serif"
+              fontFamily="Roboto, sans-serif"
             >
               fold
             </text>
@@ -200,7 +200,7 @@ export function SheetLayoutSvg({
                 fill="#fff8ea"
                 fontSize={badgeR * 1.15}
                 fontWeight={800}
-                fontFamily="Barlow Condensed, sans-serif"
+                fontFamily="Roboto, sans-serif"
               >
                 {c.n}
               </text>

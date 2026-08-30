@@ -1,13 +1,20 @@
 @import "tailwindcss";
 
+/* Allegra 2026 identity — shop-floor ticket, not a franchise marketing site.
+   Official wordmark / stylized A stay on MMO. Do not invent them here. */
 :root {
-  --ink: #1a1612;
-  --paper: #efe6d4;
-  --ticket: #f7f1e4;
-  --rule: #2a241c;
-  --amber: #e3a008;
-  --stamp: #b42318;
-  --ok: #2f6b3a;
+  --purple: #522e90;
+  --red: #ee3e42;
+  --sky: #408eb2;
+  --gold: #fcba30;
+  --green: #26a046;
+  --ink: #1c1428;
+  --paper: #f4f2f8;
+  --ticket: #ffffff;
+  --rule: #522e90;
+  --amber: #fcba30;
+  --stamp: #ee3e42;
+  --ok: #26a046;
 }
 
 html,
@@ -17,17 +24,27 @@ body {
 }
 
 body {
-  font-family: var(--font-plex), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-roboto), Roboto, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
 }
 
 h1,
 h2,
+h3,
 .ticket-head {
-  font-family: var(--font-condensed), "Barlow Condensed", sans-serif;
+  font-family: var(--font-roboto), Roboto, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
 }
 
 .mono {
-  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--font-roboto), Roboto, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.hand {
+  font-family: var(--font-caveat), Caveat, cursive;
+  font-weight: 700;
 }
 
 .watermark {
@@ -42,30 +59,30 @@ h2,
 
 .watermark span {
   transform: rotate(-28deg);
-  font-family: var(--font-condensed), sans-serif;
-  font-weight: 800;
-  font-size: clamp(5rem, 22vw, 14rem);
-  letter-spacing: 0.18em;
-  color: rgba(180, 35, 24, 0.07);
+  font-family: var(--font-roboto), Roboto, sans-serif;
+  font-weight: 700;
+  font-size: clamp(4.5rem, 18vw, 12rem);
+  letter-spacing: 0.12em;
+  color: rgba(238, 62, 66, 0.08);
   user-select: none;
 }
 
 .ticket {
   background: var(--ticket);
-  border: 2px solid var(--rule);
-  box-shadow: 6px 6px 0 rgba(26, 22, 18, 0.12);
+  border: 1px solid color-mix(in srgb, var(--purple) 28%, #d8d2e4);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--purple) 8%, transparent), 0 8px 24px rgba(82, 46, 144, 0.06);
 }
 
 .rule {
-  border-bottom: 2px dashed #c4b8a0;
+  border-bottom: 1px dashed color-mix(in srgb, var(--purple) 28%, #d8d2e4);
 }
 
 .stamp {
-  border: 3px solid var(--stamp);
+  border: 2px solid var(--stamp);
   color: var(--stamp);
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-weight: 700;
 }
 
 .glossary {
@@ -78,17 +95,17 @@ h2,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
-  min-height: 24px;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
   padding: 0;
   border: 2px solid var(--stamp);
   background: var(--ticket);
   color: var(--stamp);
-  font-family: var(--font-condensed), "Barlow Condensed", sans-serif;
-  font-size: 13px;
-  font-weight: 800;
+  font-family: var(--font-roboto), Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0;
   line-height: 1;
   text-transform: none;
@@ -96,7 +113,7 @@ h2,
 }
 
 .glossary-mark:focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--purple);
   outline-offset: 2px;
 }
 
@@ -108,12 +125,12 @@ h2,
   max-width: min(20rem, calc(100vw - 2rem));
   padding: 0.5rem 0.65rem;
   background: var(--ticket);
-  border: 2px solid var(--rule);
-  box-shadow: 4px 4px 0 rgba(26, 22, 18, 0.12);
+  border: 1px solid color-mix(in srgb, var(--purple) 28%, #d8d2e4);
+  box-shadow: 0 8px 24px rgba(82, 46, 144, 0.1);
   color: var(--ink);
-  font-family: var(--font-plex), "IBM Plex Sans", ui-sans-serif, sans-serif;
+  font-family: var(--font-roboto), Roboto, sans-serif;
   font-size: 0.8125rem;
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: 0;
   line-height: 1.35;
   text-transform: none;

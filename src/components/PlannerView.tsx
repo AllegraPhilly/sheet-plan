@@ -174,7 +174,7 @@ export function PlannerView() {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
       <div className="grid gap-4">
         <form
-          className="ticket p-4 sm:p-5"
+          className="ticket p-3 sm:p-4"
           noValidate
           onSubmit={(e) => {
             e.preventDefault();
@@ -354,13 +354,13 @@ export function PlannerView() {
           <div className="mt-4 grid grid-cols-1 gap-2">
             <button
               type="submit"
-              className="min-h-12 w-full bg-[var(--ink)] px-3 py-3 font-semibold tracking-wide text-[var(--paper)]"
+              className="min-h-12 w-full bg-[var(--purple)] px-3 py-3 font-bold text-white"
             >
               Build PLAN
             </button>
             <button
               type="button"
-              className="min-h-12 w-full border-2 border-[var(--ink)] bg-[var(--ticket)] px-3 py-3 font-semibold"
+              className="min-h-12 w-full border-2 border-[var(--purple)] bg-[var(--ticket)] px-3 py-3 font-bold text-[var(--purple)]"
               onClick={persistTicket}
             >
               Save on this phone
@@ -381,7 +381,7 @@ export function PlannerView() {
           )}
         </form>
 
-        <section className="ticket p-4 sm:p-5" aria-label="Saved jobs on this phone">
+        <section className="ticket p-3 sm:p-4" aria-label="Saved jobs on this phone">
           <h2 className="ticket-head text-3xl">SAVED JOBS</h2>
           <p className="mb-3 text-sm opacity-70">This browser only. Clearing site data drops the list.</p>
           {saved.length === 0 ? (
@@ -419,7 +419,7 @@ export function PlannerView() {
         ref={planPaneRef}
         id="plan-pane"
         tabIndex={-1}
-        className="ticket scroll-mt-4 p-4 outline-none sm:p-5"
+        className="ticket scroll-mt-4 p-3 outline-none sm:p-4"
       >
         {built.error && !plan ? (
           <p className="text-[var(--stamp)]" role="alert">
@@ -513,7 +513,7 @@ function PlanCard({
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <h2 className="ticket-head text-3xl">PLAN</h2>
-        <span className="stamp px-2 py-0.5 text-[10px]">Not a quote</span>
+        <span className="stamp hand px-2 py-0.5 text-base normal-case tracking-normal">Not a quote</span>
       </div>
       {(who || jobDate) && (
         <p className="mb-3 text-sm">

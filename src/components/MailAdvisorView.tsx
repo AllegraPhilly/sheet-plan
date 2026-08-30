@@ -34,7 +34,7 @@ export function MailAdvisorView() {
         Staff Mail Advisor — not a customer chatbot
       </p>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
-        <form className="ticket p-5" onSubmit={(e) => e.preventDefault()}>
+        <form className="ticket p-3 sm:p-4" onSubmit={(e) => e.preventDefault()}>
           <h2 className="ticket-head text-3xl">PIECE</h2>
           <label className="mt-3 block text-sm font-semibold">
             Notes
@@ -163,7 +163,7 @@ export function MailAdvisorView() {
           </label>
         </form>
 
-        <section className="ticket p-5">
+        <section className="ticket p-3 sm:p-4">
           <h2 className="ticket-head text-3xl">ADVICE</h2>
           <p className="mt-2 text-sm">{advice.contentGate.why}</p>
 

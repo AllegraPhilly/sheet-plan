@@ -13,7 +13,7 @@ export function FloorView() {
       </p>
       <div className="grid gap-3 md:grid-cols-2">
         {shown.map((m) => (
-          <article key={m.id} className="ticket p-4">
+          <article key={m.id} className="ticket p-3 sm:p-4">
             <div className="flex items-start justify-between gap-2">
               <h3 className="ticket-head text-2xl leading-none">{m.name}</h3>
               <span
