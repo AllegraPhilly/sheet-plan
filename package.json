@@ -1,0 +1,29 @@
+{
+  "name": "sheet-plan",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Allegra Philadelphia shop-floor planner — production plans, not dollar quotes.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build && node scripts/pages-postbuild.mjs",
+    "start": "npx --yes serve out",
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "next": "^15.5.2",
+    "pdfjs-dist": "^5.4.149",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.12",
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "tailwindcss": "^4.1.12",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

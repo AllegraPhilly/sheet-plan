@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #1a1612;
+  --paper: #efe6d4;
+  --ticket: #f7f1e4;
+  --rule: #2a241c;
+  --amber: #e3a008;
+  --stamp: #b42318;
+  --ok: #2f6b3a;
+}
+
+html,
+body {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-plex), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+h1,
+h2,
+.ticket-head {
+  font-family: var(--font-condensed), "Barlow Condensed", sans-serif;
+}
+
+.mono {
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.watermark {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.watermark span {
+  transform: rotate(-28deg);
+  font-family: var(--font-condensed), sans-serif;
+  font-weight: 800;
+  font-size: clamp(5rem, 22vw, 14rem);
+  letter-spacing: 0.18em;
+  color: rgba(180, 35, 24, 0.07);
+  user-select: none;
+}
+
+.ticket {
+  background: var(--ticket);
+  border: 2px solid var(--rule);
+  box-shadow: 6px 6px 0 rgba(26, 22, 18, 0.12);
+}
+
+.rule {
+  border-bottom: 2px dashed #c4b8a0;
+}
+
+.stamp {
+  border: 3px solid var(--stamp);
+  color: var(--stamp);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 800;
+}
