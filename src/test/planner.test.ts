@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FORBIDDEN_UI_STRINGS, MACHINES, machineById, neverRouteIds } from "@/lib/machines";
 import { exactTileLayout, isExactTile, nestOnParent, rankParents } from "@/lib/planner/nest";
+import { commitNumberField, parseNumberDraft } from "@/lib/planner/num-field";
 import { mustStep, planFromDescription, planFromJob, safePlanFromJob } from "@/lib/planner/plan";
 import { PARENTS, VERSANT_PLAN_MAX, type JobInput } from "@/lib/planner/types";
 
@@ -223,5 +224,33 @@ describe("exact-tile helper", () => {
     expect(nest!.gripperApplied).toBe(false);
     expect(nest!.trimApplied).toBe(false);
     expect(nest!.sheetsToBuy).toBe(100);
+  });
+});
+
+describe("ticket number fields while editing", () => {
+  it("does not treat a cleared box as 1 the way Number('') + Math.max(1, n) does", () => {
+    expect(Number("")).toBe(0);
+    expect(Math.max(1, Number(""))).toBe(1);
+    expect(parseNumberDraft("")).toBeNull();
+    expect(parseNumberDraft("   ")).toBeNull();
+    expect(parseNumberDraft("300")).toBe(300);
+  });
+
+  it("cleared Qty then 300 commits 300, not 1300", () => {
+    expect(parseNumberDraft("")).toBeNull();
+    expect(commitNumberField("300", { min: 1, fallback: 1 })).toBe(300);
+    expect(commitNumberField("3", { min: 1, fallback: 1 })).toBe(3);
+  });
+
+  it("Qty empty on blur keeps the last valid qty (minimum 1); 0 becomes 1", () => {
+    expect(commitNumberField("", { min: 1, fallback: 500 })).toBe(500);
+    expect(commitNumberField("0", { min: 1, fallback: 500 })).toBe(1);
+    expect(commitNumberField("1", { min: 1, fallback: 500 })).toBe(1);
+  });
+
+  it("Finish W/H can stay empty while editing and restore on blur", () => {
+    expect(parseNumberDraft("")).toBeNull();
+    expect(commitNumberField("", { min: 0, fallback: 8.5 })).toBe(8.5);
+    expect(commitNumberField("11", { min: 0, fallback: 8.5 })).toBe(11);
   });
 });
