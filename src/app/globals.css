@@ -67,3 +67,62 @@ h2,
   letter-spacing: 0.14em;
   font-weight: 800;
 }
+
+.glossary {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.glossary-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: 2px solid var(--stamp);
+  background: var(--ticket);
+  color: var(--stamp);
+  font-family: var(--font-condensed), "Barlow Condensed", sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.glossary-mark:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.glossary-tip {
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 30;
+  width: max-content;
+  max-width: min(20rem, calc(100vw - 2rem));
+  padding: 0.5rem 0.65rem;
+  background: var(--ticket);
+  border: 2px solid var(--rule);
+  box-shadow: 4px 4px 0 rgba(26, 22, 18, 0.12);
+  color: var(--ink);
+  font-family: var(--font-plex), "IBM Plex Sans", ui-sans-serif, sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.glossary-start .glossary-tip {
+  left: 0;
+}
+
+.glossary-end .glossary-tip {
+  right: 0;
+}

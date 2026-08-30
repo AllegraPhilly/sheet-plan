@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { GlossaryTip } from "@/components/GlossaryTip";
 
 const NAV = [
   { href: "/", label: "Planner" },
@@ -25,7 +26,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Production PLAN — press, parent to buy, n-up, cuts. Not a dollar quote.
             </p>
           </div>
-          <div className="stamp px-3 py-1 text-xs text-[var(--amber)] border-[var(--amber)]">Internal use</div>
+          <div className="flex items-center gap-2">
+            <div className="stamp px-3 py-1 text-xs text-[var(--amber)] border-[var(--amber)]">Internal use</div>
+            <GlossaryTip term="internal" align="end" />
+          </div>
         </div>
         <nav className="mx-auto flex max-w-6xl gap-1 px-4 pb-3" aria-label="Primary">
           {NAV.map((item) => {
