@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { inspectFileInBrowser } from "@/lib/inspect/browser-inspect";
 import { inferFinishFromMedia, type InspectedFile } from "@/lib/inspect/file-inspect";
-import { planFromJob } from "@/lib/planner/plan";
+import { safePlanFromJob } from "@/lib/planner/plan";
 import type { ColorPath, JobInput, ProductionPlan } from "@/lib/planner/types";
 
 const empty: JobInput = {
@@ -18,19 +18,48 @@ const empty: JobInput = {
   substrate: "paper",
 };
 
+function ticketJob(job: JobInput): JobInput {
+  const qty = Number.isFinite(job.qty) && job.qty > 0 ? job.qty : 1;
+  const finishW = Number.isFinite(job.finishW) && job.finishW > 0 ? job.finishW : 8.5;
+  const finishH = Number.isFinite(job.finishH) && job.finishH > 0 ? job.finishH : 11;
+  return {
+    ...job,
+    qty,
+    finishW,
+    finishH,
+    description: job.description.trim() || `${qty} ${finishW}×${finishH}`,
+  };
+}
+
+function parsedFrom(job: JobInput, inspected: InspectedFile | null): ProductionPlan["parsedFrom"] {
+  if (inspected) return "file";
+  if (job.description.trim()) return "text";
+  return "form";
+}
+
 export function PlannerView() {
   const [job, setJob] = useState<JobInput>(empty);
   const [inspected, setInspected] = useState<InspectedFile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
+  const planPaneRef = useRef<HTMLElement>(null);
 
-  const plan: ProductionPlan | null = useMemo(() => {
-    if (!touched && !job.description && !inspected) return null;
-    return planFromJob(
-      { ...job, description: job.description || `${job.qty} ${job.finishW}×${job.finishH}` },
-      inspected ? "file" : job.description ? "text" : "form",
-    );
+  const built = useMemo(() => {
+    if (!touched && !job.description.trim() && !inspected) {
+      return { plan: null as ProductionPlan | null, error: null as string | null };
+    }
+    return safePlanFromJob(ticketJob(job), parsedFrom(job, inspected));
   }, [job, inspected, touched]);
+
+  const plan = built.plan;
+  const ticketError = error ?? built.error;
+
+  function revealPlanPane() {
+    requestAnimationFrame(() => {
+      planPaneRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      planPaneRef.current?.focus({ preventScroll: true });
+    });
+  }
 
   function patch<K extends keyof JobInput>(key: K, value: JobInput[K]) {
     setTouched(true);
@@ -62,9 +91,14 @@ export function PlannerView() {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
       <form
         className="ticket p-5"
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
+          setError(null);
           setTouched(true);
+          const result = safePlanFromJob(ticketJob(job), parsedFrom(job, inspected));
+          if (result.error) setError(result.error);
+          revealPlanPane();
         }}
       >
         <h2 className="ticket-head text-3xl">JOB TICKET</h2>
@@ -98,7 +132,9 @@ export function PlannerView() {
               : "size unknown"}
           </p>
         )}
-        {error && <p className="mb-3 text-sm text-[var(--stamp)]">{error}</p>}
+        {error && (
+          <p className="mb-3 text-sm text-[var(--stamp)]">{error}</p>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <Num label="Qty" value={job.qty} onChange={(n) => patch("qty", Math.max(1, n))} />
@@ -178,10 +214,24 @@ export function PlannerView() {
         >
           Build PLAN
         </button>
+        {ticketError && (
+          <p className="mt-3 text-sm text-[var(--stamp)]" role="alert">
+            {ticketError}
+          </p>
+        )}
       </form>
 
-      <section className="ticket p-5">
-        {!plan ? (
+      <section
+        ref={planPaneRef}
+        id="plan-pane"
+        tabIndex={-1}
+        className="ticket scroll-mt-4 p-5 outline-none"
+      >
+        {built.error && !plan ? (
+          <p className="text-[var(--stamp)]" role="alert">
+            {built.error}
+          </p>
+        ) : !plan ? (
           <p className="opacity-70">Enter a job. Classic check: 8.5×11 color → 11×17 2-up, one Challenge click.</p>
         ) : (
           <PlanCard plan={plan} />
@@ -218,6 +268,12 @@ function Num({
 
 function PlanCard({ plan }: { plan: ProductionPlan }) {
   const r = plan.recommended;
+  const press = plan.press;
+  const why = plan.why ?? [];
+  const finishing = plan.finishing ?? [];
+  const also = plan.alsoConsider ?? [];
+  const alts = plan.alternatives ?? [];
+  const warnings = plan.warnings ?? [];
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
@@ -225,24 +281,36 @@ function PlanCard({ plan }: { plan: ProductionPlan }) {
         <span className="stamp px-2 py-0.5 text-[10px]">Not a quote</span>
       </div>
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
-        <Row k="Press" v={`${plan.press.name} — ${plan.press.action}`} />
-        <Row k="Parent to buy" v={`${r.parent.label} · ${r.sheetsToBuy} sheets · ${r.nUp}-up`} />
-        <Row k="Impressions" v={`${r.impressions} (${r.nUp}-up click-save)`} />
-        <Row k="Cut" v={`${r.cuts.why}`} />
+        <Row k="Press" v={`${press?.name ?? "Unassigned"} — ${press?.action ?? "no press step"}`} />
+        <Row
+          k="Parent to buy"
+          v={
+            r?.parent
+              ? `${r.parent.label} · ${r.sheetsToBuy} sheets · ${r.nUp}-up`
+              : "No parent nest for this ticket."
+          }
+        />
+        <Row
+          k="Impressions"
+          v={r ? `${r.impressions} (${r.nUp}-up click-save)` : "—"}
+        />
+        <Row k="Cut" v={r?.cuts?.why ?? "No cut plan."} />
       </dl>
 
       <h3 className="ticket-head mt-6 text-2xl">Why</h3>
       <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-        {plan.why.map((w) => (
-          <li key={w}>{w}</li>
-        ))}
+        {why.length === 0 ? (
+          <li>Plan built from the ticket fields.</li>
+        ) : (
+          why.map((w) => <li key={w}>{w}</li>)
+        )}
       </ul>
 
-      {plan.finishing.length > 0 && (
+      {finishing.length > 0 && (
         <>
           <h3 className="ticket-head mt-6 text-2xl">Finishing</h3>
           <ul className="mt-2 space-y-1 text-sm">
-            {plan.finishing.map((s) => (
+            {finishing.map((s) => (
               <li key={s.machineId}>
                 <span className="font-semibold">{s.name}</span> — {s.action}
               </li>
@@ -251,11 +319,11 @@ function PlanCard({ plan }: { plan: ProductionPlan }) {
         </>
       )}
 
-      {plan.alsoConsider.length > 0 && (
+      {also.length > 0 && (
         <>
           <h3 className="ticket-head mt-6 text-2xl">Also consider</h3>
           <ul className="mt-2 space-y-1 text-sm opacity-80">
-            {plan.alsoConsider.map((s) => (
+            {also.map((s) => (
               <li key={s.machineId}>
                 {s.name} — {s.action}
               </li>
@@ -264,7 +332,7 @@ function PlanCard({ plan }: { plan: ProductionPlan }) {
         </>
       )}
 
-      {plan.alternatives.length > 0 && (
+      {alts.length > 0 && r && (
         <>
           <h3 className="ticket-head mt-6 text-2xl">Other parents (buy score)</h3>
           <table className="mt-2 w-full text-left text-sm">
@@ -278,13 +346,13 @@ function PlanCard({ plan }: { plan: ProductionPlan }) {
               </tr>
             </thead>
             <tbody>
-              {[r, ...plan.alternatives].map((n) => (
-                <tr key={n.parent.id} className="rule">
-                  <td className="py-1">{n.parent.label}</td>
+              {[r, ...alts].map((n) => (
+                <tr key={n.parent?.id ?? n.parent?.label} className="rule">
+                  <td className="py-1">{n.parent?.label ?? "—"}</td>
                   <td>{n.nUp}</td>
                   <td>{n.sheetsToBuy}</td>
                   <td>{n.impressions}</td>
-                  <td className="mono">{n.buyScore.toFixed(1)}</td>
+                  <td className="mono">{Number.isFinite(n.buyScore) ? n.buyScore.toFixed(1) : "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -292,7 +360,7 @@ function PlanCard({ plan }: { plan: ProductionPlan }) {
         </>
       )}
 
-      {plan.warnings.map((w) => (
+      {warnings.map((w) => (
         <p key={w} className="mt-4 text-sm text-[var(--stamp)]">
           {w}
         </p>
