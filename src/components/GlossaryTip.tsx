@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { nextTipMode, type TipMode } from "@/lib/glossary-tip";
 import { GLOSSARY, type GlossaryKey } from "@/lib/glossary";
 
 const OPEN_EVENT = "sheet-plan:glossary-open";
@@ -13,22 +14,49 @@ export function GlossaryTip({
   align?: "start" | "end";
 }) {
   const entry = GLOSSARY[term];
-  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<TipMode>("closed");
   const wrapRef = useRef<HTMLSpanElement>(null);
+  const leaveTimer = useRef<number | null>(null);
   const tipId = useId();
+  const open = mode !== "closed";
+
+  function clearLeaveTimer() {
+    if (leaveTimer.current != null) {
+      window.clearTimeout(leaveTimer.current);
+      leaveTimer.current = null;
+    }
+  }
+
+  function apply(action: Parameters<typeof nextTipMode>[1]) {
+    setMode((current) => nextTipMode(current, action));
+  }
+
+  useEffect(() => {
+    return () => clearLeaveTimer();
+  }, []);
 
   useEffect(() => {
     if (!open) return;
+    window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: tipId }));
 
     function onPeerOpen(e: Event) {
       const other = (e as CustomEvent<string>).detail;
-      if (other !== tipId) setOpen(false);
+      if (other !== tipId) {
+        clearLeaveTimer();
+        setMode("closed");
+      }
     }
     function onDocPointer(e: PointerEvent) {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+      if (!wrapRef.current?.contains(e.target as Node)) {
+        clearLeaveTimer();
+        setMode("closed");
+      }
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        clearLeaveTimer();
+        setMode("closed");
+      }
     }
 
     window.addEventListener(OPEN_EVENT, onPeerOpen);
@@ -41,18 +69,21 @@ export function GlossaryTip({
     };
   }, [open, tipId]);
 
-  function toggle() {
-    setOpen((was) => {
-      const next = !was;
-      if (next) {
-        window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: tipId }));
-      }
-      return next;
-    });
-  }
-
   return (
-    <span className={`glossary glossary-${align}`} ref={wrapRef}>
+    <span
+      className={`glossary glossary-${align}`}
+      ref={wrapRef}
+      onPointerEnter={(e) => {
+        if (e.pointerType !== "mouse") return;
+        clearLeaveTimer();
+        apply("hover-enter");
+      }}
+      onPointerLeave={(e) => {
+        if (e.pointerType !== "mouse") return;
+        clearLeaveTimer();
+        leaveTimer.current = window.setTimeout(() => apply("hover-leave"), 140);
+      }}
+    >
       <button
         type="button"
         className="glossary-mark"
@@ -62,7 +93,8 @@ export function GlossaryTip({
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          toggle();
+          clearLeaveTimer();
+          apply("click");
         }}
       >
         ?

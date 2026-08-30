@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GLOSSARY } from "@/lib/glossary";
+import { nextTipMode } from "@/lib/glossary-tip";
 
 describe("glossary copy", () => {
   it("covers planner and mail terms without inventing rates or a 2–3 day FCM promise", () => {
@@ -38,5 +39,18 @@ describe("glossary copy", () => {
     expect(GLOSSARY.nUp.label).toBe("n-up");
     expect(GLOSSARY.buyScore.label).toBe("buy score");
     expect(GLOSSARY.notice123.label).toBe("Notice 123");
+  });
+});
+
+describe("glossary tip open modes", () => {
+  it("desktop hover previews; click pins so it stays; click again or dismiss closes", () => {
+    expect(nextTipMode("closed", "hover-enter")).toBe("hover");
+    expect(nextTipMode("hover", "hover-leave")).toBe("closed");
+    expect(nextTipMode("hover", "click")).toBe("pinned");
+    expect(nextTipMode("pinned", "hover-leave")).toBe("pinned");
+    expect(nextTipMode("pinned", "click")).toBe("closed");
+    expect(nextTipMode("closed", "click")).toBe("pinned");
+    expect(nextTipMode("pinned", "dismiss")).toBe("closed");
+    expect(nextTipMode("hover", "dismiss")).toBe("closed");
   });
 });
