@@ -285,16 +285,41 @@ export function PlannerView() {
               <select
                 className={fieldClass}
                 value={job.bind}
-                onChange={(e) => patch("bind", e.target.value as JobInput["bind"])}
+                onChange={(e) => {
+                  const bind = e.target.value as JobInput["bind"];
+                  setTouched(true);
+                  setNotice(null);
+                  setJob((j) => {
+                    const next: JobInput = { ...j, bind };
+                    if (bind === "saddle") {
+                      next.sides = 2;
+                      next.fold = "half";
+                      if (!next.pages || next.pages < 4) next.pages = 8;
+                    }
+                    if (!descDirtyRef.current) next.description = autoDescription(next);
+                    return next;
+                  });
+                }}
               >
                 <option value="none">None</option>
                 <option value="staple">Stitch</option>
+                <option value="saddle">Saddle booklet</option>
                 <option value="coil">Coil</option>
                 <option value="drill">Drill</option>
                 <option value="laminate">Laminate</option>
                 <option value="shrink">Shrink</option>
               </select>
             </label>
+            {job.bind === "saddle" && (
+              <Num
+                label="Pages"
+                term="saddle"
+                value={job.pages ?? 8}
+                min={4}
+                step={4}
+                onChange={(n) => patch("pages", n)}
+              />
+            )}
           </div>
 
           <label className="mt-3 block text-sm font-semibold">
@@ -503,14 +528,22 @@ function PlanCard({
           term="parent"
           v={
             r?.parent
-              ? `${r.parent.label} · ${r.sheetsToBuy} sheets · ${r.nUp}-up`
+              ? r.saddle
+                ? `${r.parent.label} · ${r.sheetsToBuy} sheets · saddle signature (4 pages/sheet)`
+                : `${r.parent.label} · ${r.sheetsToBuy} sheets · ${r.nUp}-up`
               : "No parent nest for this ticket."
           }
         />
         <Row
           k="Impressions"
           term="impressions"
-          v={r ? `${r.impressions} (${r.nUp}-up click-save)` : "—"}
+          v={
+            r
+              ? r.saddle
+                ? `${r.impressions} (duplex on 11×17)`
+                : `${r.impressions} (${r.nUp}-up click-save)`
+              : "—"
+          }
         />
         {r?.cuts ? (
           <CutRow cuts={r.cuts} />
@@ -525,7 +558,11 @@ function PlanCard({
       </dl>
       {r && (
         <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-          <TermLabel term="nUp">{r.nUp}-up</TermLabel>
+          {r.saddle ? (
+            <TermLabel term="saddle">Saddle signature</TermLabel>
+          ) : (
+            <TermLabel term="nUp">{r.nUp}-up</TermLabel>
+          )}
           <TermLabel term="exactTile">Exact tile {r.exactTile ? "yes" : "no"}</TermLabel>
           <TermLabel term="gripper">Gripper {r.gripperApplied ? "0.25 in" : "off"}</TermLabel>
           <TermLabel term="trim">Trim {r.trimApplied ? "0.125 in" : "off"}</TermLabel>
