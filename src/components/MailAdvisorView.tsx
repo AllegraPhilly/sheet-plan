@@ -235,7 +235,7 @@ function CellTable({ cells, empty }: { cells: RateCell[]; empty: string }) {
               <div className="text-xs opacity-70">{c.notes.join(" ")}</div>
             </td>
             <td className="mono">{c.amount === null ? "—" : c.unit === "fee" ? `$${c.amount}` : c.amount.toFixed(3)}</td>
-            <td className="mono">{c.page ?? "—"}</td>
+            <td className="mono">{c.page == null ? "—" : `p.${c.page}`}</td>
             <td>
               {c.eligibleNow ? (
                 <span className="text-[var(--ok)]">now</span>

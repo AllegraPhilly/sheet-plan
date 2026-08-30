@@ -7,9 +7,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
+  deployments: write
 
 concurrency:
   group: pages
@@ -54,9 +55,31 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: static-site
+          path: out
+
+  enable-pages:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or switch Pages to GitHub Actions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/pages" >/dev/null 2>&1; then
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/pages" -f build_type=workflow || true
+          else
+            gh api --silent -X POST "repos/${GITHUB_REPOSITORY}/pages" -f build_type=workflow || \
+              gh api --silent -X POST "repos/${GITHUB_REPOSITORY}/pages" -f source[branch]=gh-pages -f source[path]=/ || \
+              true
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/pages" || true
 
   deploy:
-    needs: build
+    needs: [build, enable-pages]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
@@ -65,3 +88,22 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+  publish-gh-pages:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: static-site
+          path: out
+      - name: Publish gh-pages branch
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: out
+          branch: gh-pages
+          clean: true
+          force: true
