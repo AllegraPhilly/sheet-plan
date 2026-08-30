@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { TermLabel } from "@/components/GlossaryTip";
 import { inspectFileInBrowser } from "@/lib/inspect/browser-inspect";
 import { inferFinishFromMedia, type InspectedFile } from "@/lib/inspect/file-inspect";
 import { safePlanFromJob } from "@/lib/planner/plan";
 import type { ColorPath, JobInput, ProductionPlan } from "@/lib/planner/types";
+import type { GlossaryKey } from "@/lib/glossary";
 
 const empty: JobInput = {
   description: "",
@@ -138,8 +140,20 @@ export function PlannerView() {
 
         <div className="grid grid-cols-2 gap-3">
           <Num label="Qty" value={job.qty} onChange={(n) => patch("qty", Math.max(1, n))} />
-          <Num label="Finish W (in)" value={job.finishW} step={0.125} onChange={(n) => patch("finishW", n)} />
-          <Num label="Finish H (in)" value={job.finishH} step={0.125} onChange={(n) => patch("finishH", n)} />
+          <Num
+            label="Finish W (in)"
+            term="finish"
+            value={job.finishW}
+            step={0.125}
+            onChange={(n) => patch("finishW", n)}
+          />
+          <Num
+            label="Finish H (in)"
+            term="finish"
+            value={job.finishH}
+            step={0.125}
+            onChange={(n) => patch("finishH", n)}
+          />
           <label className="text-sm font-semibold">
             Color
             <select
@@ -164,7 +178,7 @@ export function PlannerView() {
             </select>
           </label>
           <label className="text-sm font-semibold">
-            Substrate
+            <TermLabel term="substrate">Substrate</TermLabel>
             <select
               className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
               value={job.substrate}
@@ -232,7 +246,10 @@ export function PlannerView() {
             {built.error}
           </p>
         ) : !plan ? (
-          <p className="opacity-70">Enter a job. Classic check: 8.5×11 color → 11×17 2-up, one Challenge click.</p>
+          <p className="opacity-70">
+            Enter a job. Classic check: 8.5×11 color → 11×17{" "}
+            <TermLabel term="nUp">2-up</TermLabel>, one Challenge <TermLabel term="cutClick">click</TermLabel>.
+          </p>
         ) : (
           <PlanCard plan={plan} />
         )}
@@ -246,15 +263,17 @@ function Num({
   value,
   onChange,
   step = 1,
+  term,
 }: {
   label: string;
   value: number;
   onChange: (n: number) => void;
   step?: number;
+  term?: GlossaryKey;
 }) {
   return (
     <label className="text-sm font-semibold">
-      {label}
+      {term ? <TermLabel term={term}>{label}</TermLabel> : label}
       <input
         type="number"
         step={step}
@@ -284,6 +303,7 @@ function PlanCard({ plan }: { plan: ProductionPlan }) {
         <Row k="Press" v={`${press?.name ?? "Unassigned"} — ${press?.action ?? "no press step"}`} />
         <Row
           k="Parent to buy"
+          term="parent"
           v={
             r?.parent
               ? `${r.parent.label} · ${r.sheetsToBuy} sheets · ${r.nUp}-up`
@@ -292,10 +312,24 @@ function PlanCard({ plan }: { plan: ProductionPlan }) {
         />
         <Row
           k="Impressions"
+          term="impressions"
           v={r ? `${r.impressions} (${r.nUp}-up click-save)` : "—"}
         />
-        <Row k="Cut" v={r?.cuts?.why ?? "No cut plan."} />
+        <Row k="Cut" term="cutClick" v={r?.cuts?.why ?? "No cut plan."} />
+        <Row
+          k="Buy score"
+          term="buyScore"
+          v={r && Number.isFinite(r.buyScore) ? r.buyScore.toFixed(1) : "—"}
+        />
       </dl>
+      {r && (
+        <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          <TermLabel term="nUp">{r.nUp}-up</TermLabel>
+          <TermLabel term="exactTile">Exact tile {r.exactTile ? "yes" : "no"}</TermLabel>
+          <TermLabel term="gripper">Gripper {r.gripperApplied ? "0.25 in" : "off"}</TermLabel>
+          <TermLabel term="trim">Trim {r.trimApplied ? "0.125 in" : "off"}</TermLabel>
+        </p>
+      )}
 
       <h3 className="ticket-head mt-6 text-2xl">Why</h3>
       <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
@@ -369,10 +403,12 @@ function PlanCard({ plan }: { plan: ProductionPlan }) {
   );
 }
 
-function Row({ k, v }: { k: string; v: string }) {
+function Row({ k, v, term }: { k: string; v: string; term?: GlossaryKey }) {
   return (
     <div className="rule pb-2">
-      <dt className="mono text-[10px] uppercase tracking-widest opacity-60">{k}</dt>
+      <dt className="mono text-[10px] uppercase tracking-widest opacity-60">
+        {term ? <TermLabel term={term}>{k}</TermLabel> : k}
+      </dt>
       <dd>{v}</dd>
     </div>
   );

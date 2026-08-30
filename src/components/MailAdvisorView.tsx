@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { TermLabel } from "@/components/GlossaryTip";
 import { adviseMail } from "@/lib/mail/advise";
 import type { ContentClass, Goal, MailInput, PieceKind, RateCell } from "@/lib/mail/types";
 
@@ -171,8 +172,12 @@ export function MailAdvisorView() {
 
           <h3 className="ticket-head mt-6 text-2xl">Once eligible</h3>
           <p className="text-sm opacity-70">
-            Permit/CRID commercial MM and FCM presort are <strong>NOT OPEN</strong>. Cells stay visible with{" "}
+            <TermLabel term="permit">Permit/CRID</TermLabel> commercial MM and FCM presort are{" "}
+            <strong>NOT OPEN</strong>. Cells stay visible with{" "}
             <span className="mono">shop_blockers: permit_not_open</span>.
+          </p>
+          <p className="mt-1 text-sm opacity-70">
+            Entry: <TermLabel term="entry">Origin / DSCF / DDU</TermLabel>
           </p>
           <CellTable cells={advice.onceEligible} empty="No MM / comm FCM cell for this shape." />
 
@@ -192,10 +197,27 @@ export function MailAdvisorView() {
 
           <h3 className="ticket-head mt-6 text-2xl">Speed</h3>
           <ul className="mt-2 list-disc pl-5 text-sm">
-            <li>{advice.speed.fcm}</li>
-            <li>{advice.speed.mm}</li>
-            <li>{advice.speed.eddm}</li>
+            <li>
+              <TermLabel term="fcm">First-Class (FCM)</TermLabel> — {advice.speed.fcm}
+            </li>
+            <li>
+              <TermLabel term="mm">Marketing Mail (MM)</TermLabel> — {advice.speed.mm}
+            </li>
+            <li>
+              <TermLabel term="eddm">EDDM-Retail</TermLabel> — {advice.speed.eddm}
+            </li>
           </ul>
+          {(input.piece === "letter" || input.piece === "self-mailer" || input.piece === "card") && (
+            <p className="mt-2 text-sm">
+              <TermLabel term="nonmachinable">Nonmachinable</TermLabel> letters pick up the Notice 123 surcharge
+              when they cannot run on USPS machines.
+            </p>
+          )}
+          {advice.selfMailer.tabbedRequired && (
+            <p className="mt-2 text-sm">
+              <TermLabel term="tabbed">Tabbed self-mailer</TermLabel> — {advice.selfMailer.note}
+            </p>
+          )}
 
           <h3 className="ticket-head mt-6 text-2xl">Induction</h3>
           <p className="mt-2 text-sm">
@@ -207,7 +229,8 @@ export function MailAdvisorView() {
             mailing.
           </p>
           <p className="mt-3 text-xs opacity-60">
-            {advice.notice.name} effective {advice.notice.effective}. {advice.notice.miss}
+            <TermLabel term="notice123">{advice.notice.name}</TermLabel> effective {advice.notice.effective}.{" "}
+            {advice.notice.miss}
           </p>
         </section>
       </div>

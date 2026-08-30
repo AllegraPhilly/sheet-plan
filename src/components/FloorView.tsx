@@ -1,3 +1,4 @@
+import { TermLabel } from "@/components/GlossaryTip";
 import { MACHINES } from "@/lib/machines";
 
 export function FloorView() {
@@ -7,7 +8,8 @@ export function FloorView() {
       <h2 className="ticket-head text-3xl">FLOOR LIST</h2>
       <p className="mb-4 text-sm opacity-70">
         Route only <strong>confident</strong> machines. Fuzzy = also-consider. Skip = never route. MAILBOT is email
-        only and is listed so nobody assigns it a USPS drop.
+        only and is listed so nobody assigns it a USPS drop. Planning max{" "}
+        <TermLabel term="parent">parent</TermLabel> is the largest sheet we nest on that press.
       </p>
       <div className="grid gap-3 md:grid-cols-2">
         {shown.map((m) => (
@@ -31,6 +33,11 @@ export function FloorView() {
             {m.maxParentIn && (
               <p className="mt-1 text-sm">
                 Planning max parent {m.maxParentIn.w}×{m.maxParentIn.h} in
+              </p>
+            )}
+            {m.id === "challenge-305-crt" && (
+              <p className="mt-1 text-sm">
+                <TermLabel term="cutClick">Click</TermLabel> = one cut on this knife.
               </p>
             )}
             <ul className="mt-2 list-disc pl-5 text-sm">
