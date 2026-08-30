@@ -78,8 +78,9 @@ export function parseJobText(description: string, fallback?: Partial<JobInput>):
 
   let bind: JobInput["bind"] = fallback?.bind ?? "none";
   if (/\b(coil|spiral)\b/.test(text)) bind = "coil";
+  else if (/\bside[\s-]?staple/.test(text)) bind = "side-staple";
   else if (/\b(saddle([\s-]?stitch|[\s-]?booklet)?|booklet)\b/.test(text)) bind = "saddle";
-  else if (/\b(staple|stitch)\b/.test(text)) bind = "staple";
+  else if (/\b(corner[\s-]?staple|staple|stitch)\b/.test(text)) bind = "staple";
   else if (/\b(3[\s-]?hole|drill)\b/.test(text)) bind = "drill";
   else if (/\blaminat/.test(text)) bind = "laminate";
   else if (/\bshrink/.test(text)) bind = "shrink";

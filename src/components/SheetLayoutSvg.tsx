@@ -1,3 +1,4 @@
+import { alternateParentHint } from "@/lib/planner/cut-count";
 import { layoutFromNest, type SheetLayout } from "@/lib/planner/sheet-layout";
 import type { JobInput, NestResult } from "@/lib/planner/types";
 
@@ -8,22 +9,11 @@ const GRIPPER = "#fcba30";
 const CUT = "#ee3e42";
 const FOLD = "#522e90";
 
-function layoutAria(layout: SheetLayout, isRecommended: boolean): string {
+function layoutAria(layout: SheetLayout, nest: NestResult, isRecommended: boolean): string {
   const who = isRecommended ? "recommended" : "other parent";
   const kind = layout.fold ? "saddle signature" : `${layout.nUp}-up`;
-  return `${layout.parent.label} parent, ${kind} ${who}. ${layout.caption} ${layout.cutTally.line}`;
-}
-
-function faceTrimLine(layout: SheetLayout): string {
-  const t = layout.cutTally;
-  if (t.faceTrims === 0) return "Face trim: no";
-  return `Face trim: yes, ${t.faceTrims} (${t.faceTrimReasons.join(", ")})`;
-}
-
-function splitsLine(layout: SheetLayout): string {
-  const t = layout.cutTally;
-  if (t.splits === 0) return "Splits: 0";
-  return `Splits: ${t.splits} (${t.splitWhy})`;
+  const extra = isRecommended ? layout.caption : alternateParentHint(nest);
+  return `${layout.parent.label} parent, ${kind} ${who}. ${extra}`;
 }
 
 export function SheetLayoutSvg({
@@ -48,7 +38,7 @@ export function SheetLayoutSvg({
   const badgeR = Math.min(0.42, Math.max(0.32, Math.min(parent.w, parent.h) * 0.035));
 
   return (
-    <figure id="sheet-layout" className="sheet-layout mt-4 scroll-mt-4" aria-label={layoutAria(layout, isRecommended)}>
+    <figure id="sheet-layout" className="sheet-layout mt-4 scroll-mt-4" aria-label={layoutAria(layout, nest, isRecommended)}>
       <figcaption className="mb-2 text-sm font-semibold leading-snug">
         {parent.label}
         <span className="font-normal opacity-70">
@@ -56,18 +46,16 @@ export function SheetLayoutSvg({
           · {layout.fold ? "saddle signature" : `${layout.nUp}-up`}
           {isRecommended ? " · recommended" : " · other parent"}
         </span>
-        <span className="mt-1 block font-normal">{layout.caption}</span>
-        <span className="mt-1 block text-base font-semibold">
-          Cut count: {layout.cutTally.clicks}
-        </span>
-        <span className="block font-normal">{layout.cutTally.brief}</span>
-        <span className="block font-normal">{faceTrimLine(layout)}</span>
-        <span className="block font-normal">{splitsLine(layout)}</span>
+        {isRecommended ? (
+          <span className="mt-1 block font-normal">{layout.caption}</span>
+        ) : (
+          <span className="mt-1 block font-normal">{alternateParentHint(nest)}</span>
+        )}
       </figcaption>
       <svg
         viewBox={`${-padX} ${-padTop} ${vbW} ${vbH}`}
         role="img"
-        aria-label={layoutAria(layout, isRecommended)}
+        aria-label={layoutAria(layout, nest, isRecommended)}
         className="sheet-layout-svg w-full max-w-[22rem]"
       >
         <text
@@ -90,7 +78,7 @@ export function SheetLayoutSvg({
           fontWeight={800}
           fontFamily="Roboto, sans-serif"
         >
-          {`Cut count: ${layout.cutTally.clicks}`}
+          {isRecommended ? `${layout.nUp}-up` : "other parent"}
         </text>
         <rect
           x={0}

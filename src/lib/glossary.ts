@@ -48,7 +48,7 @@ export const GLOSSARY = {
   },
   mixed: {
     label: "mixed",
-    def: "Part color, part B&W on the same ticket. Saddle: color pages + B&W pages = page count (cover signature is usually 4 color). Flats: color qty + B&W qty on the same finish.",
+    def: "Part color, part B&W on the same ticket. Qty is the total — color qty fills B&W as the remainder (0…total). Saddle: color pages default 4, B&W = pages − color, both whole signatures (÷4).",
   },
   size: {
     label: "size",

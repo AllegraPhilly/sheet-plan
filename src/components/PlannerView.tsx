@@ -16,8 +16,19 @@ import {
   type SavedJob,
 } from "@/lib/planner/saved-jobs";
 import { commitNumberField, parseNumberDraft } from "@/lib/planner/num-field";
-import { FINISH_PRESETS, matchFinishPreset, presetById } from "@/lib/planner/finish-sizes";
-import { applyMixedDefaults, autoDescription, defaultTicket, todayISO } from "@/lib/planner/ticket-text";
+import { applyFinishPreset, FINISH_PRESETS, matchFinishPreset, presetById } from "@/lib/planner/finish-sizes";
+import {
+  applyMixedDefaults,
+  autoDescription,
+  defaultTicket,
+  setMixedBwPages,
+  setMixedBwQty,
+  setMixedColorPages,
+  setMixedColorQty,
+  setMixedTotal,
+  setSaddlePageCount,
+  todayISO,
+} from "@/lib/planner/ticket-text";
 import type { ColorPath, JobInput, ProductionPlan } from "@/lib/planner/types";
 import type { GlossaryKey } from "@/lib/glossary";
 
@@ -216,19 +227,36 @@ export function PlannerView() {
           </label>
 
           <div className="grid min-w-0 grid-cols-2 gap-3">
-            <Num label="Qty" value={job.qty} min={1} onChange={(n) => patch("qty", n)} />
+            <Num
+              label="Qty"
+              value={job.qty}
+              min={1}
+              onChange={(n) => {
+                if (job.color === "mixed" && job.bind !== "saddle") {
+                  setTouched(true);
+                  setNotice(null);
+                  setJob((j) => {
+                    const next = setMixedTotal(j, n);
+                    if (!descDirtyRef.current) next.description = autoDescription(next);
+                    return next;
+                  });
+                  return;
+                }
+                patch("qty", n);
+              }}
+            />
             <label className="min-w-0 text-sm font-semibold">
               <TermLabel term="size">Size</TermLabel>
               <select
                 className={fieldClass}
-                value={matchFinishPreset(job.finishW, job.finishH)}
+                value={matchFinishPreset(job.finishW, job.finishH, job)}
                 onChange={(e) => {
                   const preset = presetById(e.target.value);
                   if (!preset?.w || !preset.h) return;
                   setTouched(true);
                   setNotice(null);
                   setJob((j) => {
-                    const next = { ...j, finishW: preset.w!, finishH: preset.h! };
+                    const next = applyFinishPreset(j, preset);
                     if (!descDirtyRef.current) next.description = autoDescription(next);
                     return next;
                   });
@@ -333,13 +361,17 @@ export function PlannerView() {
                       if (!next.pages || next.pages < 4) next.pages = 8;
                       if (next.color === "mixed") next = applyMixedDefaults(next);
                     }
+                    if (bind === "staple" || bind === "side-staple") {
+                      next.fold = "none";
+                    }
                     if (!descDirtyRef.current) next.description = autoDescription(next);
                     return next;
                   });
                 }}
               >
                 <option value="none">None</option>
-                <option value="staple">Stitch</option>
+                <option value="staple">Corner staple</option>
+                <option value="side-staple">Side staple</option>
                 <option value="saddle">Saddle booklet</option>
                 <option value="coil">Coil</option>
                 <option value="drill">Drill</option>
@@ -358,12 +390,7 @@ export function PlannerView() {
                   setTouched(true);
                   setNotice(null);
                   setJob((j) => {
-                    const next: JobInput = { ...j, pages: n };
-                    if (j.color === "mixed") {
-                      const colorPages = Math.min(j.colorPages ?? 4, n);
-                      next.colorPages = colorPages;
-                      next.bwPages = Math.max(0, n - colorPages);
-                    }
+                    const next = setSaddlePageCount(j, n);
                     if (!descDirtyRef.current) next.description = autoDescription(next);
                     return next;
                   });
@@ -382,8 +409,7 @@ export function PlannerView() {
                     setTouched(true);
                     setNotice(null);
                     setJob((j) => {
-                      const pages = j.pages ?? 8;
-                      const next: JobInput = { ...j, colorPages: n, bwPages: Math.max(0, pages - n) };
+                      const next = setMixedColorPages(j, n);
                       if (!descDirtyRef.current) next.description = autoDescription(next);
                       return next;
                     });
@@ -399,8 +425,7 @@ export function PlannerView() {
                     setTouched(true);
                     setNotice(null);
                     setJob((j) => {
-                      const pages = j.pages ?? 8;
-                      const next: JobInput = { ...j, bwPages: n, colorPages: Math.max(0, pages - n) };
+                      const next = setMixedBwPages(j, n);
                       if (!descDirtyRef.current) next.description = autoDescription(next);
                       return next;
                     });
@@ -419,8 +444,7 @@ export function PlannerView() {
                     setTouched(true);
                     setNotice(null);
                     setJob((j) => {
-                      const bw = j.bwQty ?? 0;
-                      const next: JobInput = { ...j, colorQty: n, qty: n + bw };
+                      const next = setMixedColorQty(j, n);
                       if (!descDirtyRef.current) next.description = autoDescription(next);
                       return next;
                     });
@@ -435,8 +459,7 @@ export function PlannerView() {
                     setTouched(true);
                     setNotice(null);
                     setJob((j) => {
-                      const color = j.colorQty ?? 0;
-                      const next: JobInput = { ...j, bwQty: n, qty: color + n };
+                      const next = setMixedBwQty(j, n);
                       if (!descDirtyRef.current) next.description = autoDescription(next);
                       return next;
                     });

@@ -112,7 +112,12 @@ export function finishingSteps(job: JobInput, recommended: NestResult): RouteSte
     }
     out.push(mustStep("baumfolder-714", `Fold: ${job.fold}.`));
   }
-  if (job.bind === "staple") out.push(mustStep("salco-rapid-106e", "Stitch / booklet staple."));
+  if (job.bind === "staple") {
+    out.push(mustStep("salco-rapid-106e", "Corner staple, one upper-left (Salco Rapid 106E)."));
+  }
+  if (job.bind === "side-staple") {
+    out.push(mustStep("salco-rapid-106e", "Side staple, 2–3 along the left edge (Salco Rapid 106E)."));
+  }
   if (job.bind === "coil") out.push(mustStep("rhin-o-tuff-od-4012", "Punch and bind."));
   if (job.bind === "drill") out.push(mustStep("challenge-eh3a", "Drill."));
   if (job.bind === "laminate") out.push(mustStep("seal-44-ultra-plus", "Laminate."));

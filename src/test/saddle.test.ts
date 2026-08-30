@@ -83,22 +83,37 @@ describe("saddle booklet plan", () => {
     expect(ids).toContain("salco-rapid-106e");
   });
 
-  it("Stitch stays the corner/side staple path, not saddle", () => {
+  it("Corner staple stays the flats nest path, not saddle", () => {
     const plan = planFromJob({
       ...saddleJob(),
       bind: "staple",
       pages: undefined,
       fold: "none",
       sides: 1,
-      description: "100 color 8.5x11 stitch",
+      description: "100 color 8.5x11 corner staple",
     });
     expect(plan.recommended.saddle).toBeFalsy();
     expect(plan.recommended.parent.id).toBe("tabloid");
     expect(plan.recommended.nUp).toBe(2);
     expect(plan.recommended.cuts.clicks).toBe(1);
     expect(plan.finishing.some((s) => s.machineId === "challenge-305-crt")).toBe(true);
-    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).toMatch(/stitch/i);
-    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).not.toMatch(/saddle stitch on the 11/i);
+    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).toMatch(/corner staple/i);
+    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).not.toMatch(/saddle stitch/i);
+  });
+
+  it("Side staple is flats n-up then Salco along the left edge", () => {
+    const plan = planFromJob({
+      ...saddleJob(),
+      bind: "side-staple",
+      pages: undefined,
+      fold: "none",
+      sides: 1,
+      description: "100 color 8.5x11 side staple",
+    });
+    expect(plan.recommended.saddle).toBeFalsy();
+    expect(plan.recommended.nUp).toBe(2);
+    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).toMatch(/side staple/i);
+    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).not.toMatch(/saddle stitch/i);
   });
 
   it("page count not divisible by 4 is a hard error — no plan, no blank padding", () => {
@@ -144,7 +159,7 @@ describe("saddle layout is a fold, not Cut 1", () => {
     expect(layout.parent).toMatchObject({ w: 17, h: 11, label: "11×17" });
     expect(layout.caption).toMatch(/saddle signature/i);
     expect(layout.caption).toMatch(/fold at the 17 in midline/i);
-    expect(layout.caption).toMatch(/Cut count: 0/);
+    expect(layout.caption).not.toMatch(/Cut count:/);
     expect(layout.caption).not.toMatch(/Cut 1:/);
   });
 });
@@ -158,10 +173,11 @@ describe("saddle parse and ticket line", () => {
     expect(job.fold).toBe("half");
   });
 
-  it("stitch / staple without saddle stays stitch", () => {
+  it("stitch / corner staple without saddle stays corner staple", () => {
     const job = parseJobText("100 color 8.5x11 stitch");
     expect(job.bind).toBe("staple");
     expect(job.pages).toBeUndefined();
+    expect(parseJobText("100 color 8.5x11 side staple").bind).toBe("side-staple");
   });
 
   it("auto line names saddle booklet and page count", () => {

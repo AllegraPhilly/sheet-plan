@@ -95,6 +95,18 @@ describe("Allegra 2026 shop-floor identity", () => {
     );
   });
 
+  it("keeps one Cut count heading on the chosen plan, never on the alternate layout", () => {
+    const planner = src("components/PlannerView.tsx");
+    const svg = src("components/SheetLayoutSvg.tsx");
+    expect(planner).toMatch(/Cut count: \{cuts\.clicks\}/);
+    expect(svg).not.toMatch(/Cut count:/);
+    expect(svg).toMatch(/alternateParentHint/);
+    expect(src("components/PlannerView.tsx")).toMatch(/Corner staple/);
+    expect(src("components/PlannerView.tsx")).toMatch(/Side staple/);
+    expect(src("components/PlannerView.tsx")).not.toMatch(/>Stitch</);
+    expect(src("components/PlannerView.tsx")).not.toMatch(/Perfect bind/);
+  });
+
   it("does not store allegraphilly.com, Fiery, or Vercel in identity files", () => {
     const blob = [src("app/globals.css"), src("app/layout.tsx"), src("components/AppShell.tsx")]
       .join("\n")

@@ -31,7 +31,7 @@ export type JobInput = {
   color: ColorPath;
   sides: 1 | 2;
   stockHint?: string;
-  bind?: "none" | "staple" | "saddle" | "coil" | "drill" | "laminate" | "shrink";
+  bind?: "none" | "staple" | "side-staple" | "saddle" | "coil" | "drill" | "laminate" | "shrink";
   fold?: "none" | "half" | "tri" | "z" | "letter";
   /** Booklet pages. Saddle requires a multiple of 4 (4, 8, 12, …). */
   pages?: number;
