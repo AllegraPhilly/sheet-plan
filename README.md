@@ -6,9 +6,18 @@ Staff Mail Advisor lives at [`/mail/`](https://AllegraPhilly.github.io/sheet-pla
 
 ## Live
 
-- **Now (before DNS):** https://AllegraPhilly.github.io/sheet-plan/
+- **Intended (before DNS):** https://AllegraPhilly.github.io/sheet-plan/
 - **Mail Advisor:** https://AllegraPhilly.github.io/sheet-plan/mail/
-- **After DNS:** https://bearcublodge.com (same app; CNAME in repo)
+- **Staff alias:** https://AllegraPhilly.github.io/sheet-plan/staff/mail-advisor/
+- **After DNS:** https://bearcublodge.com (same app; `public/CNAME` is `bearcublodge.com`)
+
+The static site is already on `main` and on the `gh-pages` branch. GitHub Actions builds and publishes it. **Pages itself is still off** — the Actions token cannot flip that switch (API 403). A repo admin must do this once:
+
+1. Open [Settings → Pages](https://github.com/AllegraPhilly/sheet-plan/settings/pages)
+2. **Source:** GitHub Actions (preferred), or Deploy from a branch → `gh-pages` / `/`
+3. Save. Do not add `allegraphilly.com`. Custom domain is `bearcublodge.com`.
+
+After that click, `https://AllegraPhilly.github.io/sheet-plan/` and `/mail/` go live. Re-run **Test and GitHub Pages** if the first Actions deploy ran before Pages was on.
 
 Static GitHub Pages only. No Vercel. No Node server in production. `output: 'export'`. Planner, mail advisor, and file inspect run in the browser. No `/api` routes.
 
