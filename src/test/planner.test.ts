@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FORBIDDEN_UI_STRINGS, MACHINES, machineById, neverRouteIds } from "@/lib/machines";
-import { isExactTile, nestOnParent, rankParents } from "@/lib/planner/nest";
+import { exactTileLayout, isExactTile, nestOnParent, rankParents } from "@/lib/planner/nest";
 import { mustStep, planFromDescription, planFromJob, safePlanFromJob } from "@/lib/planner/plan";
 import { PARENTS, VERSANT_PLAN_MAX, type JobInput } from "@/lib/planner/types";
 
@@ -134,5 +134,94 @@ describe("exact-tile helper", () => {
   it("letter on tabloid is exact tile", () => {
     expect(isExactTile({ w: 8.5, h: 11 }, PARENTS[1])).toBe(true);
     expect(isExactTile({ w: 5, h: 7 }, PARENTS[1])).toBe(false);
+    const layout = exactTileLayout({ w: 8.5, h: 11 }, PARENTS[1]);
+    expect(layout).toEqual({ cols: 1, rows: 2, nUp: 2, orientation: "rotated" });
+  });
+
+  it("6×9 on 12×18 is an exact 2×2 tile — no gripper/trim, 4-up", () => {
+    const parent12 = PARENTS.find((p) => p.id === "12x18")!;
+    const parent13 = PARENTS.find((p) => p.id === "13x19")!;
+    expect(isExactTile({ w: 6, h: 9 }, parent12)).toBe(true);
+    expect(isExactTile({ w: 6, h: 9 }, parent13)).toBe(false);
+    expect(exactTileLayout({ w: 6, h: 9 }, parent12)).toEqual({
+      cols: 2,
+      rows: 2,
+      nUp: 4,
+      orientation: "same",
+    });
+
+    const nest = nestOnParent(
+      {
+        description: "5000 6x9 2-sided",
+        qty: 5000,
+        finishW: 6,
+        finishH: 9,
+        color: "color",
+        sides: 2,
+        fold: "none",
+        bind: "none",
+        substrate: "paper",
+      },
+      parent12,
+    );
+    expect(nest).toBeTruthy();
+    expect(nest!.exactTile).toBe(true);
+    expect(nest!.nUp).toBe(4);
+    expect(nest!.cols).toBe(2);
+    expect(nest!.rows).toBe(2);
+    expect(nest!.orientation).toBe("same");
+    expect(nest!.gripperApplied).toBe(false);
+    expect(nest!.trimApplied).toBe(false);
+    expect(nest!.sheetsToBuy).toBe(1250);
+    expect(nest!.impressions).toBe(2500);
+    expect(nest!.buyScore).toBeCloseTo(1250 * ((12 * 18) / (8.5 * 11)), 5);
+  });
+
+  it("rankParents picks 12×18 4-up over 13×19 for 5000 / 6×9 / 2-sided", () => {
+    const job: JobInput = {
+      description: "5000 6x9 color 2-sided",
+      qty: 5000,
+      finishW: 6,
+      finishH: 9,
+      color: "color",
+      sides: 2,
+      fold: "none",
+      bind: "none",
+      substrate: "paper",
+    };
+    const ranked = rankParents(job);
+    expect(ranked[0].parent.id).toBe("12x18");
+    expect(ranked[0].nUp).toBe(4);
+    expect(ranked[0].exactTile).toBe(true);
+    expect(ranked[0].buyScore).toBeCloseTo(1250 * ((12 * 18) / (8.5 * 11)), 5);
+
+    const nest13 = ranked.find((n) => n.parent.id === "13x19")!;
+    expect(nest13.nUp).toBe(4);
+    expect(nest13.exactTile).toBe(false);
+    expect(nest13.buyScore).toBeCloseTo(1250 * ((13 * 19) / (8.5 * 11)), 5);
+    expect(ranked[0].buyScore).toBeLessThan(nest13.buyScore);
+
+    const plan = planFromJob(job);
+    expect(plan.recommended.parent.id).toBe("12x18");
+    expect(plan.recommended.nUp).toBe(4);
+    expect(plan.why.join(" ")).toMatch(/exact 4-up tile on 12×18/i);
+    expect(plan.why.join(" ")).not.toMatch(/8\.5×11 on 11×17/);
+  });
+
+  it("5.5×8.5 on 11×17 is an exact 4-up tile (trim would otherwise drop n-up)", () => {
+    const tabloid = PARENTS[1];
+    expect(isExactTile({ w: 5.5, h: 8.5 }, tabloid)).toBe(true);
+    expect(exactTileLayout({ w: 5.5, h: 8.5 }, tabloid)).toEqual({
+      cols: 2,
+      rows: 2,
+      nUp: 4,
+      orientation: "same",
+    });
+    const nest = nestOnParent(letterJob({ finishW: 5.5, finishH: 8.5, qty: 400 }), tabloid);
+    expect(nest!.nUp).toBe(4);
+    expect(nest!.exactTile).toBe(true);
+    expect(nest!.gripperApplied).toBe(false);
+    expect(nest!.trimApplied).toBe(false);
+    expect(nest!.sheetsToBuy).toBe(100);
   });
 });
