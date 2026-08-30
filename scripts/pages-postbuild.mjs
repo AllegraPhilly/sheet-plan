@@ -19,7 +19,7 @@ writeFileSync(join(out, "CNAME"), "bearcublodge.com\n");
 const nested = join(out, "sheet-plan");
 mkdirSync(nested, { recursive: true });
 
-for (const name of ["_next", "mail", "floor", "staff"]) {
+for (const name of ["_next", "mail", "floor", "staff", "brand"]) {
   const src = join(out, name);
   if (existsSync(src)) {
     cpSync(src, join(nested, name), { recursive: true });

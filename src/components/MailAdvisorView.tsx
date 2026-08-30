@@ -39,7 +39,7 @@ export function MailAdvisorView() {
           <label className="mt-3 block text-sm font-semibold">
             Notes
             <input
-              className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
+              className="field"
               value={input.description ?? ""}
               onChange={(e) => patch("description", e.target.value)}
               placeholder="newsletter / invoice / occupant"
@@ -48,7 +48,7 @@ export function MailAdvisorView() {
           <label className="mt-3 block text-sm font-semibold">
             Piece
             <select
-              className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
+              className="field"
               value={input.piece}
               onChange={(e) => patch("piece", e.target.value as PieceKind)}
             >
@@ -65,7 +65,7 @@ export function MailAdvisorView() {
               Qty
               <input
                 type="number"
-                className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
+                className="field"
                 value={input.qty}
                 onChange={(e) => patch("qty", Number(e.target.value))}
               />
@@ -75,7 +75,7 @@ export function MailAdvisorView() {
               <input
                 type="number"
                 step={0.1}
-                className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
+                className="field"
                 value={input.weightOz}
                 onChange={(e) => patch("weightOz", Number(e.target.value))}
               />
@@ -85,7 +85,7 @@ export function MailAdvisorView() {
               <input
                 type="number"
                 step={0.125}
-                className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
+                className="field"
                 value={input.widthIn}
                 onChange={(e) => patch("widthIn", Number(e.target.value))}
               />
@@ -95,7 +95,7 @@ export function MailAdvisorView() {
               <input
                 type="number"
                 step={0.125}
-                className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
+                className="field"
                 value={input.heightIn}
                 onChange={(e) => patch("heightIn", Number(e.target.value))}
               />
@@ -104,7 +104,7 @@ export function MailAdvisorView() {
           <label className="mt-3 block text-sm font-semibold">
             Addressing
             <select
-              className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
+              className="field"
               value={input.addressing}
               onChange={(e) => patch("addressing", e.target.value as MailInput["addressing"])}
             >
@@ -117,7 +117,7 @@ export function MailAdvisorView() {
           <label className="mt-3 block text-sm font-semibold">
             Fold
             <select
-              className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
+              className="field"
               value={input.fold}
               onChange={(e) => patch("fold", e.target.value as MailInput["fold"])}
             >
@@ -131,7 +131,7 @@ export function MailAdvisorView() {
           <label className="mt-3 block text-sm font-semibold">
             Content test
             <select
-              className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
+              className="field"
               value={input.content}
               onChange={(e) => patch("content", e.target.value as ContentClass)}
             >
@@ -143,7 +143,7 @@ export function MailAdvisorView() {
           <label className="mt-3 block text-sm font-semibold">
             Goal
             <select
-              className="mt-1 w-full border-2 border-[var(--ink)] bg-white p-2"
+              className="field"
               value={input.goal}
               onChange={(e) => patch("goal", e.target.value as Goal)}
             >

@@ -20,7 +20,7 @@ import { autoDescription, defaultTicket, todayISO } from "@/lib/planner/ticket-t
 import type { ColorPath, JobInput, ProductionPlan } from "@/lib/planner/types";
 import type { GlossaryKey } from "@/lib/glossary";
 
-const fieldClass = "mt-1 w-full border-2 border-[var(--ink)] bg-white p-2.5 text-base";
+const fieldClass = "field";
 
 function ticketJob(job: JobInput): JobInput {
   const qty = Number.isFinite(job.qty) && job.qty > 0 ? job.qty : 1;
@@ -352,17 +352,10 @@ export function PlannerView() {
           {error && <p className="mt-2 text-sm text-[var(--stamp)]">{error}</p>}
 
           <div className="mt-4 grid grid-cols-1 gap-2">
-            <button
-              type="submit"
-              className="min-h-12 w-full bg-[var(--purple)] px-3 py-3 font-bold text-white"
-            >
+            <button type="submit" className="btn-primary">
               Build PLAN
             </button>
-            <button
-              type="button"
-              className="min-h-12 w-full border-2 border-[var(--purple)] bg-[var(--ticket)] px-3 py-3 font-bold text-[var(--purple)]"
-              onClick={persistTicket}
-            >
+            <button type="button" className="btn-secondary" onClick={persistTicket}>
               Save on this phone
             </button>
             <button type="button" className="min-h-11 text-sm underline-offset-2 underline" onClick={newTicket}>
@@ -402,7 +395,7 @@ export function PlannerView() {
                   </button>
                   <button
                     type="button"
-                    className="min-h-12 shrink-0 border-2 border-[var(--stamp)] px-3 text-sm font-semibold text-[var(--stamp)]"
+                    className="btn-danger min-h-12 shrink-0 px-3 text-sm"
                     aria-label={`Delete ${savedJobLabel(entry)}`}
                     onClick={() => removeSaved(entry.id)}
                   >
@@ -513,7 +506,7 @@ function PlanCard({
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <h2 className="ticket-head text-3xl">PLAN</h2>
-        <span className="stamp hand px-2 py-0.5 text-base normal-case tracking-normal">Not a quote</span>
+        <span className="quiet-note">Not a quote</span>
       </div>
       {(who || jobDate) && (
         <p className="mb-3 text-sm">
@@ -640,9 +633,7 @@ function PlanCard({
                         <button
                           type="button"
                           className={`mt-1 min-h-11 px-2 text-sm font-semibold underline-offset-2 ${
-                            isShown
-                              ? "border-2 border-[var(--ink)] bg-white no-underline"
-                              : "underline"
+                            isShown ? "btn-ghost-active no-underline" : "underline"
                           }`}
                           aria-pressed={isShown}
                           aria-label={`See layout for ${name}`}

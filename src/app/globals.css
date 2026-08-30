@@ -1,16 +1,22 @@
 @import "tailwindcss";
 
-/* Allegra 2026 identity — shop-floor ticket, not a franchise marketing site.
-   Official wordmark / stylized A stay on MMO. Do not invent them here. */
+/* Allegra 2026 identity — shop-floor ticket, not a franchise storefront.
+   Official 4-color standalone A lives in /brand. Do not invent a wordmark. */
 :root {
   --purple: #522e90;
-  --red: #ee3e42;
   --sky: #408eb2;
+  --red: #ee3e42;
   --gold: #fcba30;
   --green: #26a046;
-  --ink: #1c1428;
-  --paper: #f4f2f8;
+  --lime: #96bb33;
+  --ice: #67a8ce;
+  --orange: #f48326;
+  --berry: #9b268e;
+  --navy: #25408e;
+  --ink: #2a2040;
+  --paper: #f7f5fb;
   --ticket: #ffffff;
+  --line: color-mix(in srgb, #522e90 22%, #e7e2f0);
   --rule: #522e90;
   --amber: #fcba30;
   --stamp: #ee3e42;
@@ -47,42 +53,140 @@ h3,
   font-weight: 700;
 }
 
-.watermark {
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
+.brand-mark {
+  display: block;
+  height: 2.75rem;
+  width: auto;
 }
 
-.watermark span {
-  transform: rotate(-28deg);
-  font-family: var(--font-roboto), Roboto, sans-serif;
+@media (min-width: 640px) {
+  .brand-mark {
+    height: 3.15rem;
+  }
+}
+
+.hairline {
+  height: 1px;
+  background: var(--gold);
+}
+
+.nav-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.7rem;
+  color: color-mix(in srgb, var(--ink) 58%, transparent);
   font-weight: 700;
-  font-size: clamp(4.5rem, 18vw, 12rem);
-  letter-spacing: 0.12em;
-  color: rgba(238, 62, 66, 0.08);
-  user-select: none;
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+
+.nav-tab:hover {
+  color: var(--purple);
+}
+
+.nav-tab-active {
+  color: var(--purple);
+}
+
+.nav-tab-active::after {
+  content: "";
+  position: absolute;
+  left: 0.7rem;
+  right: 0.7rem;
+  bottom: 0.2rem;
+  height: 2px;
+  background: var(--gold);
+  border-radius: 1px;
 }
 
 .ticket {
   background: var(--ticket);
-  border: 1px solid color-mix(in srgb, var(--purple) 28%, #d8d2e4);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--purple) 8%, transparent), 0 8px 24px rgba(82, 46, 144, 0.06);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(82, 46, 144, 0.04), 0 10px 28px rgba(82, 46, 144, 0.06);
 }
 
 .rule {
-  border-bottom: 1px dashed color-mix(in srgb, var(--purple) 28%, #d8d2e4);
+  border-bottom: 1px solid var(--line);
 }
 
-.stamp {
-  border: 2px solid var(--stamp);
-  color: var(--stamp);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.internal-pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--red);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  color: var(--red);
+  font-size: 0.95rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+}
+
+.quiet-note {
+  display: inline-block;
+  color: color-mix(in srgb, var(--ink) 55%, transparent);
+  font-size: 0.7rem;
   font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.field {
+  margin-top: 0.25rem;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.65rem 0.75rem;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.field:focus {
+  outline: 2px solid color-mix(in srgb, var(--purple) 40%, white);
+  outline-offset: 1px;
+  border-color: color-mix(in srgb, var(--purple) 45%, white);
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  min-height: 48px;
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
+  font-weight: 700;
+}
+
+.btn-primary {
+  width: 100%;
+  background: #522e90;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: color-mix(in srgb, #522e90 88%, #000);
+}
+
+.btn-secondary {
+  width: 100%;
+  border: 1.5px solid #522e90;
+  background: #fff;
+  color: #522e90;
+}
+
+.btn-danger {
+  border: 1px solid var(--red);
+  background: #fff;
+  color: var(--red);
+}
+
+.btn-ghost-active {
+  border: 1px solid var(--purple);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--purple) 6%, white);
+  color: var(--purple);
 }
 
 .glossary {
@@ -100,8 +204,9 @@ h3,
   min-width: 22px;
   min-height: 22px;
   padding: 0;
-  border: 2px solid var(--stamp);
-  background: var(--ticket);
+  border: 1.5px solid var(--stamp);
+  border-radius: 999px;
+  background: #fff;
   color: var(--stamp);
   font-family: var(--font-roboto), Roboto, sans-serif;
   font-size: 12px;
@@ -124,8 +229,9 @@ h3,
   width: max-content;
   max-width: min(20rem, calc(100vw - 2rem));
   padding: 0.5rem 0.65rem;
-  background: var(--ticket);
-  border: 1px solid color-mix(in srgb, var(--purple) 28%, #d8d2e4);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
   box-shadow: 0 8px 24px rgba(82, 46, 144, 0.1);
   color: var(--ink);
   font-family: var(--font-roboto), Roboto, sans-serif;
