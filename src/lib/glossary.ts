@@ -44,7 +44,15 @@ export const GLOSSARY = {
   },
   saddle: {
     label: "saddle booklet",
-    def: "One 11×17 sheet folded (4 pages). Not letter 2-up cut on the Challenge.",
+    def: "One fold, 4 pages per signature sheet. Signature is 2× the finish in one dimension, nested on the cheapest parent. Not letter 2-up cut on the Challenge.",
+  },
+  mixed: {
+    label: "mixed",
+    def: "Part color, part B&W on the same ticket. Saddle: color pages + B&W pages = page count (cover signature is usually 4 color). Flats: color qty + B&W qty on the same finish.",
+  },
+  size: {
+    label: "size",
+    def: "Shortcut that fills finish W and H. Custom or any typed number still plans — this is not a whitelist.",
   },
   substrate: {
     label: "substrate",

@@ -61,6 +61,9 @@ describe("Allegra 2026 shop-floor identity", () => {
     expect(src("app/layout.tsx")).toMatch(/Caveat/);
     expect(shell).toMatch(/hand/);
     expect(src("components/PlannerView.tsx")).not.toMatch(/className="[^"]*hand/);
+    const planner = src("components/PlannerView.tsx");
+    expect(planner).toMatch(/role="alert"/);
+    expect(planner.match(/role="alert"/g)?.length).toBe(1);
   });
 
   it("does not store allegraphilly.com, Fiery, or Vercel in identity files", () => {

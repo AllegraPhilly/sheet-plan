@@ -41,6 +41,7 @@ export type SheetLayout = {
   pieces: LayoutPiece[];
   cuts: LayoutCut[];
   fold: LayoutCut | null;
+  folds: LayoutCut[];
   pieceW: number;
   pieceH: number;
   tileW: number;
@@ -74,29 +75,33 @@ export function layoutFromNest(
   const sheetTurned = nest.sheetTurned ?? false;
   const needsFileRotate = nest.needsFileRotate ?? orientation === "rotated";
   const saddle = nest.saddle === true;
-  const frame = nestFrame(finish, nest);
+  const sig = nest.signature ?? { w: finish.finishW * 2, h: finish.finishH, doubled: "w" as const };
+  const gridFinish = saddle ? { finishW: sig.w, finishH: sig.h } : finish;
+  const frame = nestFrame(gridFinish, nest);
   const { feed, piece, tileW, tileH, originX, originY, trimPad, gripperH } = frame;
-  const cutTally = saddle
-    ? {
-        clicks: 0,
-        splits: 0,
-        faceTrims: 0,
-        faceTrimReasons: [],
-        splitWhy: "",
-        brief: "0 splits, no face trim",
-        line: "Cut count: 0. Fold at the 17 in midline — not a letter cut.",
-      }
-    : tallyGuillotine(finish, nest);
+  const zeroTally: CutTally = {
+    clicks: 0,
+    splits: 0,
+    faceTrims: 0,
+    faceTrimReasons: [],
+    splitWhy: "",
+    brief: "0 splits, no face trim",
+    line: nest.cuts.why,
+  };
+  const cutTally =
+    saddle && nest.cuts.clicks === 0 ? zeroTally : tallyGuillotine(gridFinish, nest);
 
   const gripper = gripperApplied
     ? { x: 0, y: feed.h - gripperH, w: feed.w, h: gripperH }
     : null;
 
   const pieces: LayoutPiece[] = [];
+  const folds: LayoutCut[] = [];
   const cellCount = Math.max(0, cols) * Math.max(0, rows);
-  const drawCount = saddle ? cellCount : Math.min(nUp, cellCount);
+  const drawCount = Math.min(nUp, cellCount) || (saddle ? cellCount : 0);
 
-  for (let i = 0; i < drawCount; i++) {
+  for (let i = 0; i < Math.max(drawCount, saddle ? Math.max(1, nUp) : 0); i++) {
+    if (!saddle && i >= drawCount) break;
     const col = cols > 0 ? i % cols : 0;
     const row = cols > 0 ? Math.floor(i / cols) : 0;
     const tile = {
@@ -105,24 +110,38 @@ export function layoutFromNest(
       w: tileW,
       h: tileH,
     };
-    pieces.push({
-      tile,
-      finish: {
-        x: tile.x + trimPad,
-        y: tile.y + trimPad,
-        w: piece.w,
-        h: piece.h,
-      },
-    });
+    if (saddle) {
+      const pageW = sig.doubled === "w" ? piece.w / 2 : piece.w;
+      const pageH = sig.doubled === "h" ? piece.h / 2 : piece.h;
+      const fx = tile.x + trimPad;
+      const fy = tile.y + trimPad;
+      pieces.push({ tile, finish: { x: fx, y: fy, w: pageW, h: pageH } });
+      if (sig.doubled === "w") {
+        pieces.push({ tile, finish: { x: fx + pageW, y: fy, w: pageW, h: pageH } });
+        folds.push({ x1: fx + pageW, y1: fy, x2: fx + pageW, y2: fy + pageH, n: 0, axis: "v" });
+      } else {
+        pieces.push({ tile, finish: { x: fx, y: fy + pageH, w: pageW, h: pageH } });
+        folds.push({ x1: fx, y1: fy + pageH, x2: fx + pageW, y2: fy + pageH, n: 0, axis: "h" });
+      }
+    } else {
+      pieces.push({
+        tile,
+        finish: {
+          x: tile.x + trimPad,
+          y: tile.y + trimPad,
+          w: piece.w,
+          h: piece.h,
+        },
+      });
+    }
   }
 
-  const fold: LayoutCut | null = saddle
-    ? { x1: feed.w / 2, y1: 0, x2: feed.w / 2, y2: feed.h, n: 0, axis: "v" }
-    : null;
+  const fold = folds[0] ?? null;
 
   const first = stripAxis(cols, rows, feed.w, feed.h);
   const cuts: LayoutCut[] = [];
-  if (!saddle && nUp > 1 && first) {
+  const showCuts = !saddle || nest.cuts.clicks > 0;
+  if (showCuts && nUp > 1 && first) {
     let n = 1;
     const pushV = () => {
       for (let col = 1; col < cols; col++) {
@@ -145,6 +164,13 @@ export function layoutFromNest(
     }
   }
 
+  const classicLetter =
+    saddle &&
+    nest.nUp === 1 &&
+    nest.cuts.clicks === 0 &&
+    Math.abs(sig.w - 17) < 0.05 &&
+    Math.abs(sig.h - 11) < 0.05;
+
   return {
     parent: { w: feed.w, h: feed.h, label: parent.label },
     nUp,
@@ -160,14 +186,17 @@ export function layoutFromNest(
     pieces,
     cuts,
     fold,
-    pieceW: piece.w,
-    pieceH: piece.h,
+    folds,
+    pieceW: saddle ? (sig.doubled === "w" ? piece.w / 2 : piece.w) : piece.w,
+    pieceH: saddle ? (sig.doubled === "h" ? piece.h / 2 : piece.h) : piece.h,
     tileW,
     tileH,
     originX,
     originY,
     caption: saddle
-      ? `Saddle signature. Fold at the 17 in midline. 4 pages per sheet. Not a letter cut. ${cutCountCaption(0)}`
+      ? classicLetter
+        ? `Saddle signature. Fold at the 17 in midline. 4 pages per sheet. Not a letter cut. ${cutCountCaption(0)}`
+        : `Saddle signature ${sig.w}×${sig.h} (${nUp}-up). 4 pages per sheet. Fold at the midline. Not a letter 2-up cut. ${cutCountCaption(cutTally.clicks)}`
       : `${repeatCaption({ w: finish.finishW, h: finish.finishH }, nest)} ${cutCountCaption(cutTally.clicks)}`,
     cutTally,
   };

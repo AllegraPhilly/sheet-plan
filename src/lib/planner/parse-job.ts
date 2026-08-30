@@ -53,8 +53,9 @@ export function parseJobText(description: string, fallback?: Partial<JobInput>):
   }
   if (!size) size = { w: 8.5, h: 11 };
 
-  let color: ColorPath = fallback?.color ?? "auto";
-  if (/\b(b\/?w|black\s*and\s*white|grayscale|mono)\b/.test(text)) color = "bw";
+  let color: ColorPath = fallback?.color ?? "color";
+  if (/\bmixed\b/.test(text)) color = "mixed";
+  else if (/\b(b\/?w|black\s*and\s*white|grayscale|mono)\b/.test(text)) color = "bw";
   else if (/\b(color|colour|cmyk|full[\s-]?color)\b/.test(text)) color = "color";
 
   let sides: 1 | 2 = fallback?.sides ?? 1;
@@ -97,6 +98,29 @@ export function parseJobText(description: string, fallback?: Partial<JobInput>):
 
   const scannedOriginal = /\b(scan|original|hard copy)\b/.test(text);
 
+  let colorPages = fallback?.colorPages;
+  let bwPages = fallback?.bwPages;
+  let colorQty = fallback?.colorQty;
+  let bwQty = fallback?.bwQty;
+  const coverMix = text.match(/(\d+)\s*color(?:\s*cover)?\s*\/\s*(\d+)\s*b\s*&\s*w/);
+  if (coverMix) {
+    colorPages = Number(coverMix[1]);
+    bwPages = Number(coverMix[2]);
+    color = "mixed";
+  } else if (color === "mixed" && bind === "saddle" && pages) {
+    colorPages = colorPages ?? Math.min(4, pages);
+    bwPages = bwPages ?? pages - colorPages;
+  } else if (color === "mixed" && bind !== "saddle") {
+    const split = text.match(/(\d+)\s*color\s*\/\s*(\d+)\s*b\s*&\s*w/);
+    if (split) {
+      colorQty = Number(split[1]);
+      bwQty = Number(split[2]);
+    } else {
+      colorQty = colorQty ?? qty;
+      bwQty = bwQty ?? 0;
+    }
+  }
+
   return {
     description,
     qty: Math.max(1, qty),
@@ -107,6 +131,10 @@ export function parseJobText(description: string, fallback?: Partial<JobInput>):
     fold,
     bind,
     pages,
+    colorPages,
+    bwPages,
+    colorQty,
+    bwQty,
     stockHint,
     substrate,
     scannedOriginal,

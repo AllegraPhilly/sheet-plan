@@ -251,6 +251,47 @@ describe("exact-tile helper", () => {
   });
 });
 
+describe("any typed finish is a real gang", () => {
+  it("2×2 flats nest on a shop parent with n-up ≥ 1", () => {
+    const plan = planFromJob({
+      description: "200 color 2x2",
+      qty: 200,
+      finishW: 2,
+      finishH: 2,
+      color: "color",
+      sides: 1,
+      fold: "none",
+      bind: "none",
+      substrate: "paper",
+    });
+    expect(plan.recommended.nUp).toBeGreaterThanOrEqual(1);
+    expect(plan.recommended.sheetsToBuy).toBeGreaterThan(0);
+    expect(plan.recommended.saddle).toBeFalsy();
+    expect(plan.press.machineId).toBe("versant-4100");
+  });
+
+  it("mixed flats make two plan lines (Versant + Accurio)", () => {
+    const plan = planFromJob({
+      description: "300 mixed 8.5x11 (200 color / 100 B&W)",
+      qty: 300,
+      finishW: 8.5,
+      finishH: 11,
+      color: "mixed",
+      sides: 1,
+      fold: "none",
+      bind: "none",
+      substrate: "paper",
+      colorQty: 200,
+      bwQty: 100,
+    });
+    expect(plan.lines).toHaveLength(2);
+    expect(plan.lines![0].press.machineId).toBe("versant-4100");
+    expect(plan.lines![1].press.machineId).toBe("accurio-6120");
+    expect(plan.lines![0].nest.nUp).toBe(2);
+    expect(plan.lines![1].nest.nUp).toBe(2);
+  });
+});
+
 describe("ticket number fields while editing", () => {
   it("does not treat a cleared box as 1 the way Number('') + Math.max(1, n) does", () => {
     expect(Number("")).toBe(0);
