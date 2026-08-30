@@ -5,6 +5,7 @@ import { TermLabel } from "@/components/GlossaryTip";
 import { SheetLayoutSvg } from "@/components/SheetLayoutSvg";
 import { inspectFileInBrowser } from "@/lib/inspect/browser-inspect";
 import { inferFinishFromMedia, type InspectedFile } from "@/lib/inspect/file-inspect";
+import { nestKey } from "@/lib/planner/nest";
 import { safePlanFromJob } from "@/lib/planner/plan";
 import {
   deleteSavedJob,
@@ -475,13 +476,14 @@ function PlanCard({
   const warnings = plan.warnings ?? [];
   const who = customer.trim();
   const parents = r ? [r, ...alts] : [];
-  const [layoutParentId, setLayoutParentId] = useState<string | null>(null);
+  const recommendedKey = r ? nestKey(r) : null;
+  const [layoutKey, setLayoutKey] = useState<string | null>(null);
 
   useEffect(() => {
-    setLayoutParentId(null);
-  }, [r?.parent?.id, plan.job.finishW, plan.job.finishH, plan.job.qty]);
+    setLayoutKey(null);
+  }, [recommendedKey, plan.job.finishW, plan.job.finishH, plan.job.qty]);
 
-  const shown = parents.find((n) => n.parent?.id === layoutParentId) ?? r;
+  const shown = parents.find((n) => nestKey(n) === layoutKey) ?? r;
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
@@ -530,7 +532,7 @@ function PlanCard({
         <SheetLayoutSvg
           finish={plan.job}
           nest={shown}
-          isRecommended={shown.parent?.id === r?.parent?.id}
+          isRecommended={!!r && nestKey(shown) === nestKey(r)}
         />
       )}
 
@@ -585,12 +587,15 @@ function PlanCard({
               </thead>
               <tbody>
                 {parents.map((n) => {
-                  const id = n.parent?.id ?? n.parent?.label ?? "";
-                  const isShown = shown?.parent?.id === n.parent?.id;
+                  const id = nestKey(n);
+                  const isShown = shown ? nestKey(shown) === id : false;
+                  const name = n.needsFileRotate
+                    ? `${n.parent?.label ?? "—"} · rotate file`
+                    : (n.parent?.label ?? "—");
                   return (
                     <tr key={id} className="rule">
                       <td className="py-2">
-                        <div>{n.parent?.label ?? "—"}</div>
+                        <div>{name}</div>
                         <button
                           type="button"
                           className={`mt-1 min-h-11 px-2 text-sm font-semibold underline-offset-2 ${
@@ -599,9 +604,9 @@ function PlanCard({
                               : "underline"
                           }`}
                           aria-pressed={isShown}
-                          aria-label={`See layout for ${n.parent?.label ?? "parent"}`}
+                          aria-label={`See layout for ${name}`}
                           onClick={() => {
-                            setLayoutParentId(n.parent?.id ?? null);
+                            setLayoutKey(id);
                             requestAnimationFrame(() => {
                               document.getElementById("sheet-layout")?.scrollIntoView({
                                 behavior: "smooth",

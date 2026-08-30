@@ -1,8 +1,16 @@
+import { feedSize, repeatCaption } from "./nest";
 import { GRIPPER_IN, TRIM_IN, type JobInput, type NestResult } from "./types";
 
 export type LayoutRect = { x: number; y: number; w: number; h: number };
 
-export type LayoutCut = { x1: number; y1: number; x2: number; y2: number };
+export type LayoutCut = {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  n: number;
+  axis: "h" | "v";
+};
 
 export type LayoutPiece = {
   /** Outer nest cell (includes trim when trimApplied). */
@@ -21,6 +29,8 @@ export type SheetLayout = {
   cols: number;
   rows: number;
   orientation: NestResult["orientation"];
+  sheetTurned: boolean;
+  needsFileRotate: boolean;
   exactTile: boolean;
   gripperApplied: boolean;
   trimApplied: boolean;
@@ -31,6 +41,9 @@ export type SheetLayout = {
   pieceH: number;
   tileW: number;
   tileH: number;
+  originX: number;
+  originY: number;
+  caption: string;
 };
 
 export function finishInNestOrientation(
@@ -43,19 +56,45 @@ export function finishInNestOrientation(
   return { w: finish.finishW, h: finish.finishH };
 }
 
+/** Guillotine: fewer through-cuts first (strips), then cut the strip. */
+export function stripAxis(
+  cols: number,
+  rows: number,
+  feedW: number,
+  feedH: number,
+): "h" | "v" | null {
+  if (cols <= 1 && rows <= 1) return null;
+  if (cols <= 1) return "h";
+  if (rows <= 1) return "v";
+  if (rows < cols) return "h";
+  if (cols < rows) return "v";
+  return feedH >= feedW ? "h" : "v";
+}
+
 export function layoutFromNest(
   finish: Pick<JobInput, "finishW" | "finishH">,
   nest: NestResult,
 ): SheetLayout {
   const { parent, cols, rows, nUp, orientation, exactTile, gripperApplied, trimApplied } = nest;
+  const sheetTurned = nest.sheetTurned ?? false;
+  const needsFileRotate = nest.needsFileRotate ?? orientation === "rotated";
+  const feed = feedSize(parent, sheetTurned);
   const piece = finishInNestOrientation(finish, orientation);
   const trimPad = trimApplied ? TRIM_IN : 0;
 
-  const tileW = exactTile && cols > 0 ? parent.w / cols : piece.w + trimPad * 2;
-  const tileH = exactTile && rows > 0 ? parent.h / rows : piece.h + trimPad * 2;
+  const tileW = exactTile && cols > 0 ? feed.w / cols : piece.w + trimPad * 2;
+  const tileH = exactTile && rows > 0 ? feed.h / rows : piece.h + trimPad * 2;
+
+  const gripperH = gripperApplied ? GRIPPER_IN : 0;
+  const usableW = feed.w;
+  const usableH = feed.h - gripperH;
+  const packedW = cols * tileW;
+  const packedH = rows * tileH;
+  const originX = Math.max(0, (usableW - packedW) / 2);
+  const originY = Math.max(0, (usableH - packedH) / 2);
 
   const gripper = gripperApplied
-    ? { x: 0, y: parent.h - GRIPPER_IN, w: parent.w, h: GRIPPER_IN }
+    ? { x: 0, y: feed.h - GRIPPER_IN, w: feed.w, h: GRIPPER_IN }
     : null;
 
   const pieces: LayoutPiece[] = [];
@@ -65,7 +104,12 @@ export function layoutFromNest(
   for (let i = 0; i < drawCount; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const tile = { x: col * tileW, y: row * tileH, w: tileW, h: tileH };
+    const tile = {
+      x: originX + col * tileW,
+      y: originY + row * tileH,
+      w: tileW,
+      h: tileH,
+    };
     pieces.push({
       tile,
       finish: {
@@ -77,26 +121,39 @@ export function layoutFromNest(
     });
   }
 
-  const packedW = cols * tileW;
-  const packedH = rows * tileH;
+  const first = stripAxis(cols, rows, feed.w, feed.h);
   const cuts: LayoutCut[] = [];
-  if (nUp > 1) {
-    for (let col = 1; col < cols; col++) {
-      const x = col * tileW;
-      cuts.push({ x1: x, y1: 0, x2: x, y2: packedH });
-    }
-    for (let row = 1; row < rows; row++) {
-      const y = row * tileH;
-      cuts.push({ x1: 0, y1: y, x2: packedW, y2: y });
+  if (nUp > 1 && first) {
+    let n = 1;
+    const pushV = () => {
+      for (let col = 1; col < cols; col++) {
+        const x = originX + col * tileW;
+        cuts.push({ x1: x, y1: 0, x2: x, y2: feed.h, n: n++, axis: "v" });
+      }
+    };
+    const pushH = () => {
+      for (let row = 1; row < rows; row++) {
+        const y = originY + row * tileH;
+        cuts.push({ x1: 0, y1: y, x2: feed.w, y2: y, n: n++, axis: "h" });
+      }
+    };
+    if (first === "h") {
+      pushH();
+      pushV();
+    } else {
+      pushV();
+      pushH();
     }
   }
 
   return {
-    parent: { w: parent.w, h: parent.h, label: parent.label },
+    parent: { w: feed.w, h: feed.h, label: parent.label },
     nUp,
     cols,
     rows,
     orientation,
+    sheetTurned,
+    needsFileRotate,
     exactTile,
     gripperApplied,
     trimApplied,
@@ -107,5 +164,8 @@ export function layoutFromNest(
     pieceH: piece.h,
     tileW,
     tileH,
+    originX,
+    originY,
+    caption: repeatCaption({ w: finish.finishW, h: finish.finishH }, nest),
   };
 }

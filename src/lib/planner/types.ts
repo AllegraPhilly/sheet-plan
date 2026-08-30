@@ -41,6 +41,10 @@ export type NestResult = {
   parent: ParentSheet;
   nUp: number;
   orientation: "same" | "rotated";
+  /** Parent drawn/fed as h×w so pieces can stay the same way as the file. */
+  sheetTurned: boolean;
+  /** True when pieces are rotated vs the customer file (extra prepress work). */
+  needsFileRotate: boolean;
   cols: number;
   rows: number;
   exactTile: boolean;

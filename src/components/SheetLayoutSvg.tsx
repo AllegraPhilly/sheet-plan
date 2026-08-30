@@ -7,9 +7,9 @@ const PIECE = "#ffffff";
 const GRIPPER = "#f0d48a";
 const CUT = "#b42318";
 
-function layoutCaption(layout: SheetLayout, isRecommended: boolean): string {
+function layoutAria(layout: SheetLayout, isRecommended: boolean): string {
   const who = isRecommended ? "recommended" : "other parent";
-  return `${layout.parent.label} parent, ${layout.nUp}-up ${who}.`;
+  return `${layout.parent.label} parent, ${layout.nUp}-up ${who}. ${layout.caption}`;
 }
 
 export function SheetLayoutSvg({
@@ -23,33 +23,29 @@ export function SheetLayoutSvg({
 }) {
   const layout = layoutFromNest(finish, nest);
   const { parent, pieces, cuts, gripper } = layout;
-  const padX = 0.4;
+  const padX = 0.55;
   const padTop = 1.55;
-  const padBottom = 0.45;
+  const padBottom = 0.55;
   const vbW = parent.w + padX * 2;
   const vbH = parent.h + padTop + padBottom;
-  const titleSize = Math.min(1.05, Math.max(0.72, parent.w * 0.08));
-
-  const notes: string[] = [];
-  if (gripper) notes.push("Light strip is gripper (0.25 in).");
-  if (layout.trimApplied) notes.push("Trim 0.125 in around each finish.");
-  if (cuts.length === 1) notes.push("Dashed line is the Challenge cut.");
-  else if (cuts.length > 1) notes.push("Dashed lines are Challenge cuts.");
+  const titleSize = Math.min(1.05, Math.max(0.72, parent.w * 0.07));
+  const badgeR = Math.min(0.42, Math.max(0.32, Math.min(parent.w, parent.h) * 0.035));
 
   return (
-    <figure id="sheet-layout" className="sheet-layout mt-4 scroll-mt-4" aria-label={layoutCaption(layout, isRecommended)}>
-      <figcaption className="mb-2 text-sm font-semibold">
+    <figure id="sheet-layout" className="sheet-layout mt-4 scroll-mt-4" aria-label={layoutAria(layout, isRecommended)}>
+      <figcaption className="mb-2 text-sm font-semibold leading-snug">
         {parent.label}
         <span className="font-normal opacity-70">
           {" "}
           · {layout.nUp}-up
           {isRecommended ? " · recommended" : " · other parent"}
         </span>
+        <span className="mt-1 block font-normal">{layout.caption}</span>
       </figcaption>
       <svg
         viewBox={`${-padX} ${-padTop} ${vbW} ${vbH}`}
         role="img"
-        aria-label={layoutCaption(layout, isRecommended)}
+        aria-label={layoutAria(layout, isRecommended)}
         className="sheet-layout-svg w-full max-w-[22rem]"
       >
         <text
@@ -112,23 +108,59 @@ export function SheetLayoutSvg({
             vectorEffect="non-scaling-stroke"
           />
         ))}
-        {cuts.map((c, i) => (
-          <line
-            key={`cut-${i}`}
-            x1={c.x1}
-            y1={c.y1}
-            x2={c.x2}
-            y2={c.y2}
-            stroke={CUT}
-            strokeWidth={3}
-            strokeDasharray="10 7"
-            strokeLinecap="square"
-            vectorEffect="non-scaling-stroke"
-          />
-        ))}
+        {cuts.map((c) => {
+          const midX = (c.x1 + c.x2) / 2;
+          const midY = (c.y1 + c.y2) / 2;
+          const bx = c.axis === "v" ? c.x1 : Math.min(c.x1, c.x2) + badgeR * 1.1;
+          const by = c.axis === "h" ? c.y1 : Math.min(c.y1, c.y2) + badgeR * 1.1;
+          return (
+            <g key={`cut-${c.n}-${c.axis}-${midX}-${midY}`}>
+              <line
+                x1={c.x1}
+                y1={c.y1}
+                x2={c.x2}
+                y2={c.y2}
+                stroke={CUT}
+                strokeWidth={3}
+                strokeDasharray="10 7"
+                strokeLinecap="square"
+                vectorEffect="non-scaling-stroke"
+              />
+              <circle
+                cx={bx}
+                cy={by}
+                r={badgeR}
+                fill={CUT}
+                stroke={INK}
+                strokeWidth={1.5}
+                vectorEffect="non-scaling-stroke"
+              />
+              <text
+                x={bx}
+                y={by}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fill="#fff8ea"
+                fontSize={badgeR * 1.15}
+                fontWeight={800}
+                fontFamily="Barlow Condensed, sans-serif"
+              >
+                {c.n}
+              </text>
+            </g>
+          );
+        })}
       </svg>
-      {notes.length > 0 && (
-        <p className="mt-2 text-sm opacity-80">{notes.join(" ")}</p>
+      {layout.needsFileRotate && (
+        <p className="mt-2 text-sm text-[var(--stamp)]">
+          Prepress would have to rotate the file. Not the default pick.
+        </p>
+      )}
+      {gripper && !layout.needsFileRotate && (
+        <p className="mt-2 text-sm opacity-80">Light strip is gripper (0.25 in). One gripper edge.</p>
+      )}
+      {layout.trimApplied && !layout.needsFileRotate && (
+        <p className="mt-1 text-sm opacity-80">Trim 0.125 in around each finish. Even gutters, through-cuts.</p>
       )}
     </figure>
   );
