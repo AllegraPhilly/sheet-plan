@@ -9,7 +9,19 @@ const CUT = "#b42318";
 
 function layoutAria(layout: SheetLayout, isRecommended: boolean): string {
   const who = isRecommended ? "recommended" : "other parent";
-  return `${layout.parent.label} parent, ${layout.nUp}-up ${who}. ${layout.caption}`;
+  return `${layout.parent.label} parent, ${layout.nUp}-up ${who}. ${layout.caption} ${layout.cutTally.line}`;
+}
+
+function faceTrimLine(layout: SheetLayout): string {
+  const t = layout.cutTally;
+  if (t.faceTrims === 0) return "Face trim: no";
+  return `Face trim: yes, ${t.faceTrims} (${t.faceTrimReasons.join(", ")})`;
+}
+
+function splitsLine(layout: SheetLayout): string {
+  const t = layout.cutTally;
+  if (t.splits === 0) return "Splits: 0";
+  return `Splits: ${t.splits} (${t.splitWhy})`;
 }
 
 export function SheetLayoutSvg({
@@ -24,11 +36,12 @@ export function SheetLayoutSvg({
   const layout = layoutFromNest(finish, nest);
   const { parent, pieces, cuts, gripper } = layout;
   const padX = 0.55;
-  const padTop = 1.55;
+  const padTop = 2.25;
   const padBottom = 0.55;
   const vbW = parent.w + padX * 2;
   const vbH = parent.h + padTop + padBottom;
   const titleSize = Math.min(1.05, Math.max(0.72, parent.w * 0.07));
+  const totalSize = Math.min(0.82, Math.max(0.58, parent.w * 0.055));
   const badgeR = Math.min(0.42, Math.max(0.32, Math.min(parent.w, parent.h) * 0.035));
 
   return (
@@ -41,6 +54,12 @@ export function SheetLayoutSvg({
           {isRecommended ? " · recommended" : " · other parent"}
         </span>
         <span className="mt-1 block font-normal">{layout.caption}</span>
+        <span className="mt-1 block text-base font-semibold">
+          Total: {layout.cutTally.clicks} Challenge{" "}
+          {layout.cutTally.clicks === 1 ? "click" : "clicks"}
+        </span>
+        <span className="block font-normal">{faceTrimLine(layout)}</span>
+        <span className="block font-normal">{splitsLine(layout)}</span>
       </figcaption>
       <svg
         viewBox={`${-padX} ${-padTop} ${vbW} ${vbH}`}
@@ -50,7 +69,7 @@ export function SheetLayoutSvg({
       >
         <text
           x={parent.w / 2}
-          y={-0.4}
+          y={-1.15}
           textAnchor="middle"
           fill={INK}
           fontSize={titleSize}
@@ -58,6 +77,17 @@ export function SheetLayoutSvg({
           fontFamily="Barlow Condensed, sans-serif"
         >
           {parent.label}
+        </text>
+        <text
+          x={parent.w / 2}
+          y={-0.38}
+          textAnchor="middle"
+          fill={INK}
+          fontSize={totalSize}
+          fontWeight={800}
+          fontFamily="Barlow Condensed, sans-serif"
+        >
+          {`Total: ${layout.cutTally.clicks}`}
         </text>
         <rect
           x={0}

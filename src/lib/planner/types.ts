@@ -57,7 +57,12 @@ export type NestResult = {
   usableH: number;
   cuts: {
     machineId: "challenge-305-crt";
+    /** Total Challenge strokes on this parent (one lift): splits + face trims. */
     clicks: number;
+    splits: number;
+    faceTrims: number;
+    faceTrimReasons: string[];
+    splitWhy: string;
     why: string;
   };
 };

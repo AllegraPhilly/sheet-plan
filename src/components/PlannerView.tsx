@@ -512,7 +512,11 @@ function PlanCard({
           term="impressions"
           v={r ? `${r.impressions} (${r.nUp}-up click-save)` : "—"}
         />
-        <Row k="Cut" term="cutClick" v={r?.cuts?.why ?? "No cut plan."} />
+        {r?.cuts ? (
+          <CutRow cuts={r.cuts} />
+        ) : (
+          <Row k="Cut" term="cutClick" v="No cut plan." />
+        )}
         <Row
           k="Buy score"
           term="buyScore"
@@ -647,6 +651,29 @@ function Row({ k, v, term }: { k: string; v: string; term?: GlossaryKey }) {
         {term ? <TermLabel term={term}>{k}</TermLabel> : k}
       </dt>
       <dd>{v}</dd>
+    </div>
+  );
+}
+
+function CutRow({ cuts }: { cuts: NonNullable<ProductionPlan["recommended"]>["cuts"] }) {
+  const face =
+    cuts.faceTrims === 0
+      ? "Face trim: no"
+      : `Face trim: yes, ${cuts.faceTrims} (${cuts.faceTrimReasons.join(", ")})`;
+  const splits =
+    cuts.splits === 0 ? "Splits: 0" : `Splits: ${cuts.splits} (${cuts.splitWhy})`;
+  return (
+    <div className="rule pb-2 sm:col-span-2">
+      <dt className="mono text-[10px] uppercase tracking-widest opacity-60">
+        <TermLabel term="cutClick">Cut</TermLabel>
+      </dt>
+      <dd className="text-base leading-snug">
+        <div className="font-semibold">
+          Total: {cuts.clicks} Challenge {cuts.clicks === 1 ? "click" : "clicks"}
+        </div>
+        <div>{face}</div>
+        <div>{splits}</div>
+      </dd>
     </div>
   );
 }

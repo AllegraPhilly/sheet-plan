@@ -1,3 +1,4 @@
+import { cutsFromNest } from "./cut-count";
 import {
   GRIPPER_IN,
   PARENTS,
@@ -147,36 +148,21 @@ export function repeatCaption(
 
 function cutPlan(
   finish: { w: number; h: number },
-  parent: ParentSheet,
   nest: Pick<
     NestResult,
-    "nUp" | "cols" | "rows" | "exactTile" | "sheetTurned" | "needsFileRotate"
+    | "parent"
+    | "nUp"
+    | "cols"
+    | "rows"
+    | "orientation"
+    | "sheetTurned"
+    | "exactTile"
+    | "gripperApplied"
+    | "trimApplied"
+    | "needsFileRotate"
   >,
-  sameSize: boolean,
 ): NestResult["cuts"] {
-  if (sameSize || nest.nUp === 1) {
-    return {
-      machineId: "challenge-305-crt",
-      clicks: 0,
-      why: repeatCaption(finish, nest),
-    };
-  }
-  if (nest.exactTile && nest.nUp === 2 && isClassicLetterTabloid(finish, parent)) {
-    return {
-      machineId: "challenge-305-crt",
-      clicks: 1,
-      why: `${repeatCaption(finish, nest)} One click vs two on a larger parent.`,
-    };
-  }
-  const clicks = nest.nUp <= 2 ? 1 : nest.nUp <= 4 ? 2 : 3;
-  const extra = nest.exactTile
-    ? ` Exact ${nest.nUp}-up tile — no gripper, no trim.`
-    : " 30.5 in knife.";
-  return {
-    machineId: "challenge-305-crt",
-    clicks,
-    why: `${repeatCaption(finish, nest)}${extra}`,
-  };
+  return cutsFromNest(finish, nest);
 }
 
 function compareNests(a: NestResult, b: NestResult): number {
@@ -243,7 +229,18 @@ function packOnFeed(
   const impressions = sheetsToBuy * job.sides;
   const buyScore = sheetsToBuy * parent.buyWeight;
   const needsFileRotate = orientation === "rotated";
-  const nestBits = { nUp, cols, rows, exactTile, sheetTurned, needsFileRotate };
+  const nestBits = {
+    parent,
+    nUp,
+    cols,
+    rows,
+    orientation,
+    sheetTurned,
+    exactTile,
+    gripperApplied,
+    trimApplied,
+    needsFileRotate,
+  };
 
   return {
     parent,
@@ -261,7 +258,7 @@ function packOnFeed(
     buyScore,
     usableW,
     usableH,
-    cuts: cutPlan(finish, parent, nestBits, sameSize && nUp === 1),
+    cuts: cutPlan(finish, nestBits),
   };
 }
 

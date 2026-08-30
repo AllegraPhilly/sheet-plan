@@ -24,7 +24,7 @@ export const GLOSSARY = {
   },
   cutClick: {
     label: "click",
-    def: "One cut on the Challenge 305 CRT.",
+    def: "One cut on the Challenge 305 CRT. Total = splits between n-up pieces plus face trims (gripper leftover, trim/bleed, unused margin).",
   },
   finish: {
     label: "finish W/H",
