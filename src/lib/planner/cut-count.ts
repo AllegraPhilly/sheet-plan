@@ -9,6 +9,8 @@ export type CutTally = {
   faceTrims: number;
   faceTrimReasons: string[];
   splitWhy: string;
+  /** Ticket line, e.g. "2 splits, no face trim". */
+  brief: string;
   line: string;
 };
 
@@ -73,8 +75,11 @@ function leftover(edge: number, limit: number): boolean {
   return edge > EPS && edge < limit - EPS;
 }
 
-function clickWord(n: number): string {
-  return n === 1 ? "click" : "clicks";
+export function briefCutLine(splits: number, faceTrims: number): string {
+  const splitPart = splits === 1 ? "1 split" : `${splits} splits`;
+  if (faceTrims === 0) return `${splitPart}, no face trim`;
+  const facePart = faceTrims === 1 ? "1 face trim" : `${faceTrims} face trim`;
+  return `${splitPart}, ${facePart}`;
 }
 
 function splitWhy(splits: number, cols: number, rows: number): string {
@@ -84,10 +89,11 @@ function splitWhy(splits: number, cols: number, rows: number): string {
 }
 
 function formatLine(clicks: number, faceTrims: number, reasons: string[], splits: number, why: string): string {
+  const brief = briefCutLine(splits, faceTrims);
   const face =
     faceTrims === 0 ? "Face trim: no" : `Face trim: yes, ${faceTrims} (${reasons.join(", ")})`;
   const splitPart = splits === 0 ? "Splits: 0" : `Splits: ${splits} (${why})`;
-  return `Total: ${clicks} Challenge ${clickWord(clicks)}. ${face}. ${splitPart}.`;
+  return `Cut count: ${clicks}. ${brief}. ${face}. ${splitPart}.`;
 }
 
 /**
@@ -143,12 +149,14 @@ export function tallyGuillotine(
   }
 
   const why = splitWhy(splits, cols, rows);
+  const brief = briefCutLine(splits, faceTrims);
   return {
     clicks,
     splits,
     faceTrims,
     faceTrimReasons: reasons,
     splitWhy: why,
+    brief,
     line: formatLine(clicks, faceTrims, reasons, splits, why),
   };
 }
@@ -165,6 +173,7 @@ export function cutsFromNest(
     faceTrims: tally.faceTrims,
     faceTrimReasons: tally.faceTrimReasons,
     splitWhy: tally.splitWhy,
+    brief: tally.brief,
     why: tally.line,
   };
 }
@@ -177,10 +186,11 @@ export function emptyCuts(why: string): NestResult["cuts"] {
     faceTrims: 0,
     faceTrimReasons: [],
     splitWhy: "",
+    brief: briefCutLine(0, 0),
     why,
   };
 }
 
-export function totalCaption(clicks: number): string {
-  return `Total: ${clicks} Challenge ${clickWord(clicks)}.`;
+export function cutCountCaption(clicks: number): string {
+  return `Cut count: ${clicks}.`;
 }

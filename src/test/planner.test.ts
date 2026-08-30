@@ -225,7 +225,7 @@ describe("exact-tile helper", () => {
     expect(plan.recommended.cuts.splits).toBe(2);
     expect(plan.recommended.cuts.faceTrims).toBe(0);
     expect(plan.why.join(" ")).toMatch(/exact 4-up tile on 12×18/i);
-    expect(plan.why.join(" ")).toMatch(/Total: 2 Challenge clicks/);
+    expect(plan.why.join(" ")).toMatch(/Cut count: 2/);
     expect(plan.why.join(" ")).not.toMatch(/8\.5×11 on 11×17/);
   });
 

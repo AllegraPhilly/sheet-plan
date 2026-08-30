@@ -63,6 +63,7 @@ export type NestResult = {
     faceTrims: number;
     faceTrimReasons: string[];
     splitWhy: string;
+    brief: string;
     why: string;
   };
 };

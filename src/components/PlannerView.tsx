@@ -515,7 +515,7 @@ function PlanCard({
         {r?.cuts ? (
           <CutRow cuts={r.cuts} />
         ) : (
-          <Row k="Cut" term="cutClick" v="No cut plan." />
+          <Row k="Cut count" term="cutClick" v="No cut plan." />
         )}
         <Row
           k="Buy score"
@@ -665,12 +665,11 @@ function CutRow({ cuts }: { cuts: NonNullable<ProductionPlan["recommended"]>["cu
   return (
     <div className="rule pb-2 sm:col-span-2">
       <dt className="mono text-[10px] uppercase tracking-widest opacity-60">
-        <TermLabel term="cutClick">Cut</TermLabel>
+        <TermLabel term="cutClick">Cut count</TermLabel>
       </dt>
       <dd className="text-base leading-snug">
-        <div className="font-semibold">
-          Total: {cuts.clicks} Challenge {cuts.clicks === 1 ? "click" : "clicks"}
-        </div>
+        <div className="font-semibold">Cut count: {cuts.clicks}</div>
+        <div>{cuts.brief}</div>
         <div>{face}</div>
         <div>{splits}</div>
       </dd>

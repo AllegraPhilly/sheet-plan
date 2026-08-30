@@ -23,8 +23,8 @@ export const GLOSSARY = {
     def: "How many times the press runs the sheet. 2-up halves clicks vs 1-up.",
   },
   cutClick: {
-    label: "click",
-    def: "One cut on the Challenge 305 CRT. Total = splits between n-up pieces plus face trims (gripper leftover, trim/bleed, unused margin).",
+    label: "cut count",
+    def: "How many Challenge 305 CRT strokes on that parent. Splits between n-up pieces plus face trims (gripper leftover, trim/bleed, unused margin).",
   },
   finish: {
     label: "finish W/H",
