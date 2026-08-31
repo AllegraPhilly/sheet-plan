@@ -64,6 +64,10 @@ export type NestResult = {
   trimApplied: boolean;
   /** Folded signature — not a 2-up letter cut of the finish. */
   saddle?: boolean;
+  /** Versant PR Booklet Maker path — 11×17 1-up through the in-line finisher. */
+  inlineBooklet?: boolean;
+  /** Face-trim the bound 8.5×11 book to finish after the in-line fold. */
+  inlineFaceTrim?: boolean;
   /** Open signature sheet (2× finish in one dimension). */
   signature?: { w: number; h: number; doubled: "w" | "h" };
   sheetsToBuy: number;

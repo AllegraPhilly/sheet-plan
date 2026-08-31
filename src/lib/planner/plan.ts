@@ -3,12 +3,14 @@ import { emptyCuts } from "./cut-count";
 import { isClassicLetterTabloid, nestOnParent, rankParents } from "./nest";
 import { parseJobText } from "./parse-job";
 import {
+  PR_BOOKLET_MAX_SHEETS,
   isCoverStock,
   isSaddleJob,
   mixedSaddleError,
   nestSaddle,
   saddleAlternatives,
   saddlePageError,
+  saddlePagesOk,
   sheetsPerSaddleBooklet,
 } from "./saddle";
 import { isMixedPackBind, mixedPackPageError, mixedPackSheetQtys } from "./ticket-text";
@@ -84,6 +86,26 @@ export function choosePress(job: JobInput): { press: RouteStep; also: RouteStep[
 export function finishingSteps(job: JobInput, recommended: NestResult): RouteStep[] {
   const out: RouteStep[] = [];
   if (isSaddleJob(job)) {
+    if (recommended.inlineBooklet) {
+      out.push(
+        mustStep(
+          "xerox-pr-booklet-maker-finisher",
+          "Fold and saddle-staple in-line on the Versant 4100.",
+        ),
+      );
+      if (recommended.inlineFaceTrim) {
+        out.push(
+          mustStep(
+            "challenge-305-crt",
+            `Face-trim 8.5×11 to ${job.finishW}×${job.finishH} after the book comes out.`,
+          ),
+        );
+      }
+      if (job.scannedOriginal) {
+        out.unshift(mustStep("epson-expression-11000xl", "Scan original (tabloid flatbed)."));
+      }
+      return out;
+    }
     if (recommended.cuts.clicks > 0) {
       out.push(
         mustStep("challenge-305-crt", "Split ganged signatures on the parent. Not a letter 2-up cut."),
@@ -173,6 +195,18 @@ export function mixedBookletPress(): RouteStep {
 }
 
 function saddleWhy(job: JobInput, recommended: NestResult, press: RouteStep): string[] {
+  if (recommended.inlineBooklet) {
+    const why = [
+      `${recommended.sheetsToBuy} sheets ${recommended.parent.label} on Versant 4100. Fold and saddle in the Xerox PR Booklet Maker Finisher.`,
+    ];
+    if (recommended.inlineFaceTrim) {
+      why.push(`Face-trim 8.5×11 to ${job.finishW}×${job.finishH} on Challenge 305 CRT.`);
+    }
+    if (job.color === "mixed") {
+      why.push(MIXED_BOOKLET_WHY);
+    }
+    return why;
+  }
   const pages = job.pages!;
   const sigsEach = sheetsPerSaddleBooklet(pages);
   const why: string[] = [];
@@ -250,10 +284,14 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
     alternatives = saddleAlternatives(job, recommended);
     if (job.color === "mixed") {
       press = mixedBookletPress();
-    } else {
-      const chosen = choosePress({ ...job, color: job.color === "bw" ? "bw" : "color" });
+      also = [];
+    } else if (job.color === "bw") {
+      const chosen = choosePress({ ...job, color: "bw" });
       press = chosen.press;
       also = chosen.also;
+    } else {
+      press = pressForPath("color");
+      also = [];
     }
   } else if (job.color === "mixed" && job.substrate === "paper" && isMixedPackBind(job.bind)) {
     const qtys = mixedPackSheetQtys(job);
@@ -321,6 +359,19 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
       recommended.parent.h > VERSANT_PLAN_MAX.h + 0.05)
   ) {
     warnings.push("Parent exceeds Versant planning max 13×19.2 in.");
+  }
+  if (
+    isSaddleJob(job) &&
+    job.substrate === "paper" &&
+    job.color !== "bw" &&
+    !recommended.inlineBooklet &&
+    saddlePagesOk(job.pages) &&
+    sheetsPerSaddleBooklet(job.pages) > PR_BOOKLET_MAX_SHEETS
+  ) {
+    const sheets = sheetsPerSaddleBooklet(job.pages);
+    warnings.push(
+      `PR Booklet Maker saddle-stitch cap is ${PR_BOOKLET_MAX_SHEETS} sheets/book (${sheets} sheets here). Offline Baumfolder 714 + Salco Rapid 106E.`,
+    );
   }
 
   const routeIds = [press, ...finishing, ...also, ...(lines ?? []).map((l) => l.press)].map((s) => s.machineId);

@@ -24,8 +24,8 @@ function nestOf(finish: { w: number; h: number }, parentId: (typeof PARENTS)[num
   return nest!;
 }
 
-describe("saddle playbill layout shows fold plus gang split", () => {
-  it("5×7 saddle 2-up of 10×7 has a fold and at least one parent split", () => {
+describe("saddle playbill layout is 11×17 in-line fold, not a gang split", () => {
+  it("5×7 color saddle is 11×17 1-up with a midline fold and no parent split", () => {
     const nest = nestSaddle({
       description: "585 color 5x7 20-page saddle",
       qty: 585,
@@ -39,12 +39,15 @@ describe("saddle playbill layout shows fold plus gang split", () => {
       substrate: "paper",
     });
     const layout = layoutFromNest({ finishW: 5, finishH: 7 }, nest);
-    expect(nest.nUp).toBe(2);
-    expect(layout.pieces.length).toBeGreaterThanOrEqual(4);
+    expect(nest.nUp).toBe(1);
+    expect(nest.inlineBooklet).toBe(true);
+    expect(nest.parent.id).toBe("tabloid");
+    expect(layout.pieces).toHaveLength(2);
     expect(layout.fold).toBeTruthy();
-    expect(layout.cuts.length).toBeGreaterThanOrEqual(1);
-    expect(layout.cutTally.splits).toBeGreaterThanOrEqual(1);
-    expect(layout.caption).toMatch(/10×7/);
+    expect(layout.cuts).toHaveLength(0);
+    expect(layout.cutTally.splits).toBe(0);
+    expect(layout.caption).toMatch(/fold at the 17 in midline/i);
+    expect(layout.caption).not.toMatch(/10×7/);
     expect(layout.caption).not.toMatch(/Cut 1: split to 8\.5×11/);
   });
 });
