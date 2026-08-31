@@ -163,12 +163,13 @@ function paperNest(job: JobInput): NestResult {
   return rankParents(job)[0] ?? fallbackNest(job);
 }
 
+/** Why mixed booklets stay one Versant stack — moving paper between presses costs too much time. */
+export const MIXED_BOOKLET_WHY =
+  "All on Versant 4100 — don’t split cover/insides across presses (too much handling).";
+
 /** Mixed booklet / pack: one Versant line for the whole book. Accurio does not run this ticket. */
 export function mixedBookletPress(): RouteStep {
-  return mustStep(
-    "versant-4100",
-    "Print the whole book on Versant 4100 (covers and insides). One press.",
-  );
+  return mustStep("versant-4100", MIXED_BOOKLET_WHY);
 }
 
 function saddleWhy(job: JobInput, recommended: NestResult, press: RouteStep): string[] {
@@ -181,9 +182,7 @@ function saddleWhy(job: JobInput, recommended: NestResult, press: RouteStep): st
     `Buy ${recommended.sheetsToBuy} parent ${recommended.parent.label} (${pages} pages ÷ 4 = ${sigsEach} signatures each × ${job.qty} booklets). ${sigLabel} signature, ${recommended.nUp}-up on the parent. Folded signature, not 8.5×11 2-up cut on the Challenge.`,
   );
   if (job.color === "mixed") {
-    why.push(
-      "Job is mixed (color cover / B&W insides). Print the whole book on Versant 4100 — one press, not a split.",
-    );
+    why.push(MIXED_BOOKLET_WHY);
   }
   why.push(
     `${recommended.impressions} duplex clicks on ${press.name} (one signature sheet = 4 pages).`,
@@ -298,9 +297,7 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
     why.push(...saddleWhy(job, recommended, press));
   } else if (job.substrate === "paper") {
     if (job.color === "mixed" && isMixedPackBind(job.bind)) {
-      why.push(
-        `${job.qty} books/sets. Job is mixed (color cover / B&W insides). Print the whole book on Versant 4100 — one press, not a split.`,
-      );
+      why.push(MIXED_BOOKLET_WHY);
     }
     if (lines && lines.length > 1) {
       for (const line of lines) {

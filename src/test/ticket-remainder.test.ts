@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { alternateParentHint } from "@/lib/planner/cut-count";
-import { planFromJob } from "@/lib/planner/plan";
+import { MIXED_BOOKLET_WHY, planFromJob } from "@/lib/planner/plan";
 import {
   applyCoverSplit,
   applyMixedDefaults,
@@ -135,10 +135,9 @@ describe("B) mixed packs — cover/insides, never a qty split", () => {
     expect(qtys.bw).toBe(500 * 8);
     const plan = planFromJob(coil);
     expect(plan.press.machineId).toBe("versant-4100");
-    expect(plan.press.action).toMatch(/whole book on Versant 4100/i);
+    expect(plan.press.action).toBe(MIXED_BOOKLET_WHY);
     expect(plan.lines).toBeUndefined();
-    expect(plan.why.join(" ")).toMatch(/500 books/);
-    expect(plan.why.join(" ")).toMatch(/Print the whole book on Versant 4100/);
+    expect(plan.why).toContain(MIXED_BOOKLET_WHY);
     expect(plan.why.join(" ")).not.toMatch(/accurio/i);
     expect(plan.why.join(" ")).not.toMatch(/gather off-press/i);
   });

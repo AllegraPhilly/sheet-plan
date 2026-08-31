@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { layoutFromNest } from "@/lib/planner/sheet-layout";
 import { parseJobText } from "@/lib/planner/parse-job";
-import { planFromDescription, planFromJob, safePlanFromJob } from "@/lib/planner/plan";
+import { MIXED_BOOKLET_WHY, planFromDescription, planFromJob, safePlanFromJob } from "@/lib/planner/plan";
 import { SADDLE_PAGES_ERROR, nestSaddle } from "@/lib/planner/saddle";
 import { autoDescription } from "@/lib/planner/ticket-text";
 import type { JobInput } from "@/lib/planner/types";
@@ -269,7 +269,7 @@ describe("mixed color saddle", () => {
       }),
     );
     expect(plan.press.machineId).toBe("versant-4100");
-    expect(plan.press.action).toMatch(/whole book on Versant 4100/i);
+    expect(plan.press.action).toBe(MIXED_BOOKLET_WHY);
     expect(plan.lines).toBeUndefined();
     expect(plan.recommended.saddle).toBe(true);
     expect(plan.recommended.sheetsToBuy).toBe(nestSaddle(plan.job).sheetsToBuy);
@@ -290,8 +290,10 @@ describe("mixed color saddle", () => {
     expect(ticket).not.toMatch(/two stacks/i);
     expect(ticket).not.toMatch(/gather off-press/i);
     expect(ticket).not.toMatch(/in-line/i);
-    expect(plan.why.join(" ")).toMatch(/Print the whole book on Versant 4100/);
-    expect(plan.why.join(" ")).toMatch(/one press, not a split/);
+    expect(plan.why).toContain(MIXED_BOOKLET_WHY);
+    expect(plan.why.join(" ")).toMatch(/Baumfolder 714/);
+    expect(plan.why.join(" ")).toMatch(/Salco Rapid 106E/);
+    expect(plan.why.join(" ")).toMatch(/Whizard/);
     expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).toMatch(/saddle stitch/i);
   });
 

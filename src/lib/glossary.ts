@@ -48,7 +48,7 @@ export const GLOSSARY = {
   },
   mixed: {
     label: "mixed",
-    def: "Part color, part B&W. Flats: Qty is the total; color qty fills B&W as you type (two stacks: Versant + Accurio). Booklets and stapled/coil packs: cover color + B&W insides describes the job; PLAN prints the whole book on Versant 4100. Saddle custom splits stay ÷4. Bind is off-press (Whizard / Baum / Salco).",
+    def: "Part color, part B&W. Flats: Qty is the total; color qty fills B&W as you type (two stacks: Versant + Accurio — separate jobs). Booklets and stapled/coil packs: cover color + B&W insides describes the job; PLAN is one Versant stack. Don’t split cover/insides across presses (too much handling). Saddle custom splits stay ÷4. Bind that stack off-press (Whizard / Baum / Salco).",
   },
   size: {
     label: "size",
