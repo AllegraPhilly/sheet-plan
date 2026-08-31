@@ -65,7 +65,13 @@ describe("finish size shortcut — not a whitelist", () => {
     expect(filled.sides).toBe(2);
     expect(filled.pages).toBe(20);
     expect(matchFinishPreset(8.5, 11, filled)).toBe("letter-booklet");
-    expect(planFromJob(filled).recommended.saddle).toBe(true);
+    const letterPlan = planFromJob(filled);
+    expect(letterPlan.recommended.saddle).toBe(true);
+    expect(letterPlan.recommended.inlineBooklet).toBe(true);
+    expect(letterPlan.recommended.parent.id).toBe("tabloid");
+    expect(letterPlan.recommended.nUp).toBe(1);
+    expect(letterPlan.finishing.map((s) => s.machineId)).toContain("xerox-pr-booklet-maker-finisher");
+    expect(letterPlan.finishing.map((s) => s.machineId)).not.toContain("challenge-305-crt");
   });
 
   it("digest booklet fills 5.5×8.5 saddle; letter flats do not force saddle", () => {
@@ -89,5 +95,12 @@ describe("finish size shortcut — not a whitelist", () => {
     expect(fiveBySeven.bind).toBe("saddle");
     expect(fiveBySeven.finishW).toBe(5);
     expect(fiveBySeven.finishH).toBe(7);
+
+    const digestPlan = planFromJob({ ...digest, pages: 8, description: "digest saddle" });
+    expect(digestPlan.recommended.inlineBooklet).toBe(true);
+    expect(digestPlan.recommended.parent.id).toBe("tabloid");
+    expect(digestPlan.recommended.nUp).toBe(1);
+    expect(digestPlan.finishing.map((s) => s.machineId)).toContain("xerox-pr-booklet-maker-finisher");
+    expect(digestPlan.finishing.map((s) => s.machineId)).toContain("challenge-305-crt");
   });
 });

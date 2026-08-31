@@ -11,6 +11,22 @@ describe("floor catalog", () => {
     expect(confidentMachines()).toHaveLength(CONFIDENT_IDS.length);
   });
 
+  it("Xerox PR Booklet Maker Finisher is the Versant in-line module — no invented serial", () => {
+    const fin = machineById("xerox-pr-booklet-maker-finisher")!;
+    expect(fin.name).toBe("Xerox Production Ready (PR) Booklet Maker Finisher");
+    expect(fin.kind).toBe("finishing");
+    expect(fin.confidence).toBe("confident");
+    expect(fin.role).toMatch(/in-line fold \+ saddle-staple on Versant 4100/i);
+    expect(fin.maxSheetIn).toEqual({ w: 13, h: 19.2 });
+    const blob = JSON.stringify(fin).toLowerCase();
+    expect(blob).not.toMatch(/squarefold|plockmatic|\bdfa\b/);
+    expect(blob).not.toMatch(/\bPZZ\d|\bserial\s*\d/);
+    expect(blob).not.toContain("fiery");
+    expect(fin.notes.join(" ")).toMatch(/7\.17/);
+    expect(fin.notes.join(" ")).toMatch(/30 sheets/);
+    expect(fin.notes.join(" ")).toMatch(/KB0400109/);
+  });
+
   it("Accurio 6120 has no booklet maker — mixed booklets print on the Versant", () => {
     const acc = machineById("accurio-6120")!;
     expect(acc.notes.join(" ")).toMatch(/no booklet maker/i);

@@ -8,6 +8,7 @@ export type MachineKind =
   | "folder"
   | "creaser"
   | "bind"
+  | "finishing"
   | "drill"
   | "laminator"
   | "stitcher"
@@ -30,6 +31,8 @@ export type Machine = {
   role: string;
   /** Planning parent max (inches). Extra-long device paths are not default parents. */
   maxParentIn?: { w: number; h: number };
+  /** Finisher sheet window (inches). Booklet path — not Versant XLS. */
+  maxSheetIn?: { w: number; h: number };
   notes: string[];
   /** Shown on floor list only when it is not a meter/USPS account identifier. */
   floorFacts?: string[];
@@ -54,8 +57,26 @@ export const MACHINES: Machine[] = [
     notes: [
       "Default planning parent max is 13×19.2 in.",
       "Device extra-long 13×47.2 in is not a default parent.",
+      "Color and mixed saddle that fit run 11×17 through the Xerox PR Booklet Maker Finisher.",
     ],
     floorFacts: ["Color", "Sheet-fed production"],
+  },
+  {
+    id: "xerox-pr-booklet-maker-finisher",
+    name: "Xerox Production Ready (PR) Booklet Maker Finisher",
+    kind: "finishing",
+    confidence: "confident",
+    role: "in-line fold + saddle-staple on Versant 4100",
+    maxSheetIn: { w: 13, h: 19.2 },
+    notes: [
+      "In-line fold + saddle-staple on the Versant 4100.",
+      "Booklet path max 13×19.2 in — not Versant XLS 47.2.",
+      "Saddle-stitch up to 30 sheets Colotech+ 90 uncoated (25 coated 52–90 gsm). Bi-fold 5 sheets.",
+      "Booklet sheet min 7.17×10.12 in, max 13×19.2 in; 60–350 gsm.",
+      "Needs Interface Decurler Module.",
+      "Xerox KB0400109, same module family. Jason floor 2026-08-30; no nameplate photo — do not invent serial.",
+    ],
+    floorFacts: ["Versant in-line", "Fold + saddle"],
   },
   {
     id: "accurio-6120",
@@ -236,6 +257,7 @@ export const MACHINES: Machine[] = [
 
 export const CONFIDENT_IDS = [
   "versant-4100",
+  "xerox-pr-booklet-maker-finisher",
   "accurio-6120",
   "kyocera-taskalfa-2554ci",
   "xante-x36",

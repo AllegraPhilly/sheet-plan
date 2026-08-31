@@ -1,6 +1,6 @@
 import { emptyCuts } from "./cut-count";
-import { approx, dimsMatch, rankParents } from "./nest";
-import type { JobInput, NestResult, ParentSheet } from "./types";
+import { approx, dimsMatch, nestOnParent, rankParents } from "./nest";
+import { PARENTS, type JobInput, type NestResult, type ParentSheet } from "./types";
 
 export const SADDLE_PAGES_ERROR =
   "Saddle booklet page count must be 4, 8, 12, … (multiple of 4). Do not pad blank pages.";
@@ -12,6 +12,14 @@ export const SADDLE_MIXED_SIG_ERROR =
   "Color pages and B&W pages must each be 0, 4, 8, … (whole signatures).";
 
 export const SADDLE_NO_PARENT_ERROR = "No shop parent fits that saddle signature.";
+
+/** Xerox PR Booklet Maker Finisher saddle-stitch cap (Colotech+ 90 uncoated). */
+export const PR_BOOKLET_MAX_SHEETS = 30;
+/** Booklet sheet window (Xerox KB0400109). A raw 10×7 signature does not fit. */
+export const PR_BOOKLET_MIN_SHEET = { w: 7.17, h: 10.12 };
+export const PR_BOOKLET_MAX_SHEET = { w: 13, h: 19.2 };
+/** 11×17 in-line folds to this book. Smaller finish face-trims after. */
+export const INLINE_FOLD_BOOK = { w: 8.5, h: 11 };
 
 export function isSaddleJob(job: Pick<JobInput, "bind">): boolean {
   return job.bind === "saddle";
@@ -32,6 +40,44 @@ export function isCoverStock(job: Pick<JobInput, "stockHint" | "description">): 
 
 export function sheetsPerSaddleBooklet(pages: number): number {
   return pages / 4;
+}
+
+export function finishFitsInside(
+  finish: { w: number; h: number },
+  container: { w: number; h: number },
+): boolean {
+  return (
+    (finish.w <= container.w + 0.02 && finish.h <= container.h + 0.02) ||
+    (finish.w <= container.h + 0.02 && finish.h <= container.w + 0.02)
+  );
+}
+
+/** Sheet through the PR Booklet Maker — min 7.17×10.12, max 13×19.2. */
+export function sheetFitsPrBookletMaker(sheet: { w: number; h: number }): boolean {
+  const fits = (w: number, h: number) =>
+    w + 0.02 >= PR_BOOKLET_MIN_SHEET.w &&
+    h + 0.02 >= PR_BOOKLET_MIN_SHEET.h &&
+    w <= PR_BOOKLET_MAX_SHEET.w + 0.02 &&
+    h <= PR_BOOKLET_MAX_SHEET.h + 0.02;
+  return fits(sheet.w, sheet.h) || fits(sheet.h, sheet.w);
+}
+
+export function needsInlineFaceTrim(job: Pick<JobInput, "finishW" | "finishH">): boolean {
+  return !dimsMatch({ w: job.finishW, h: job.finishH }, INLINE_FOLD_BOOK);
+}
+
+/**
+ * Color / mixed paper saddle that fits the Versant PR Booklet Maker.
+ * B&W stays Accurio + Salco. Over 30 sheets/book is offline.
+ * Parent is always 11×17 1-up — a raw 10×7 signature cannot feed the finisher.
+ */
+export function canInlineVersantBooklet(job: JobInput): boolean {
+  if (!isSaddleJob(job)) return false;
+  if (job.substrate !== "paper") return false;
+  if (job.color === "bw") return false;
+  if (!saddlePagesOk(job.pages)) return false;
+  if (sheetsPerSaddleBooklet(job.pages) > PR_BOOKLET_MAX_SHEETS) return false;
+  return finishFitsInside({ w: job.finishW, h: job.finishH }, INLINE_FOLD_BOOK);
 }
 
 /** Double one finish dimension — portrait W×H (5×7) becomes 10×7. */
@@ -126,7 +172,57 @@ function stampSaddle(
   };
 }
 
+export function nestInlineVersantBooklet(job: JobInput): NestResult {
+  const pages = job.pages;
+  if (!saddlePagesOk(pages)) {
+    throw new Error(SADDLE_PAGES_ERROR);
+  }
+  const tabloid = PARENTS.find((p) => p.id === "tabloid");
+  if (!tabloid) throw new Error(SADDLE_NO_PARENT_ERROR);
+  const signatures = signatureQty(job, pages);
+  const sig = { w: 17, h: 11, doubled: "w" as const };
+  const base = nestOnParent(
+    {
+      ...job,
+      qty: Math.max(1, signatures),
+      finishW: sig.w,
+      finishH: sig.h,
+      sides: 2,
+      bind: "none",
+      fold: "none",
+      color: job.color === "bw" ? "bw" : "color",
+    },
+    tabloid,
+  );
+  if (!base) throw new Error(SADDLE_NO_PARENT_ERROR);
+  const faceTrim = needsInlineFaceTrim(job);
+  const finishLabel = `${job.finishW}×${job.finishH}`;
+  const why = faceTrim
+    ? `Cut count: 0 for the fold (fold is not a Challenge cut). 11×17 in-line folds to 8.5×11; trim to ${finishLabel} on the Challenge.`
+    : `Cut count: 0. Fold at the 17 in midline — not a letter cut. 0 splits, no face trim.`;
+  return {
+    ...base,
+    nUp: 1,
+    cols: 1,
+    rows: 1,
+    saddle: true,
+    inlineBooklet: true,
+    inlineFaceTrim: faceTrim,
+    signature: sig,
+    sheetsToBuy: signatures,
+    impressions: signatures * 2,
+    buyScore: signatures * tabloid.buyWeight,
+    cuts: {
+      ...emptyCuts(why),
+      faceTrims: faceTrim ? 1 : 0,
+      faceTrimReasons: faceTrim ? ["8.5×11 book to finish after in-line fold"] : [],
+      brief: faceTrim ? "0 splits, 1 face trim" : "0 splits, no face trim",
+    },
+  };
+}
+
 export function saddleAlternatives(job: JobInput, recommended: NestResult): NestResult[] {
+  if (recommended.inlineBooklet) return [];
   const sig = recommended.signature;
   if (!sig) return [];
   const signatures = signatureQty(job);
@@ -159,7 +255,7 @@ function pickSignatureNest(job: JobInput, signatures: number): NestResult {
   return cands[0];
 }
 
-/** Folded signature on the cheapest parent that fits — any finish, not letter-only. */
+/** Color/mixed that fit: 11×17 1-up through the PR Booklet Maker. Else cheapest signature nest. */
 export function nestSaddle(job: JobInput): NestResult {
   const pages = job.pages;
   if (!saddlePagesOk(pages)) {
@@ -167,6 +263,9 @@ export function nestSaddle(job: JobInput): NestResult {
   }
   const mixedErr = mixedSaddleError(job);
   if (mixedErr) throw new Error(mixedErr);
+  if (canInlineVersantBooklet(job)) {
+    return nestInlineVersantBooklet(job);
+  }
   return pickSignatureNest(job, signatureQty(job, pages));
 }
 
