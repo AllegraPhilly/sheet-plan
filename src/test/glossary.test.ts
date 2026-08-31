@@ -16,6 +16,7 @@ describe("glossary copy", () => {
     expect(GLOSSARY.exactTile.def).toMatch(/8\.5×11 on 11×17/i);
     expect(GLOSSARY.saddle.def).toMatch(/not letter 2-up cut/i);
     expect(GLOSSARY.mixed.def).toMatch(/part color/i);
+    expect(GLOSSARY.mixed.def).toMatch(/Accurio has no booklet maker/i);
     expect(GLOSSARY.size.def).toMatch(/not a whitelist/i);
     expect(GLOSSARY.substrate.def).toMatch(/paper, envelope, vinyl, garment, UV/i);
     expect(GLOSSARY.internal.def).toMatch(/not a customer site/i);

@@ -11,6 +11,14 @@ describe("floor catalog", () => {
     expect(confidentMachines()).toHaveLength(CONFIDENT_IDS.length);
   });
 
+  it("Accurio 6120 has no booklet maker — mixed booklets gather off-press", () => {
+    const acc = machineById("accurio-6120")!;
+    expect(acc.notes.join(" ")).toMatch(/no booklet maker/i);
+    expect(acc.notes.join(" ")).toMatch(/gather off-press/i);
+    expect(acc.notes.join(" ")).toMatch(/do not load Versant covers into the Konica/i);
+    expect(acc.floorFacts?.join(" ")).toMatch(/no booklet maker/i);
+  });
+
   it("Challenge 305 CRT knife/clamp facts; Summa is vinyl not paper", () => {
     const cut = machineById("challenge-305-crt")!;
     expect(cut.floorFacts?.join(" ")).toMatch(/30\.5/);

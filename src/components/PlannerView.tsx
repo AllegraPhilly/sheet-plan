@@ -6,7 +6,12 @@ import { SheetLayoutSvg } from "@/components/SheetLayoutSvg";
 import { inspectFileInBrowser } from "@/lib/inspect/browser-inspect";
 import { inferFinishFromMedia, type InspectedFile } from "@/lib/inspect/file-inspect";
 import { nestKey } from "@/lib/planner/nest";
-import { safePlanFromJob } from "@/lib/planner/plan";
+import {
+  isMixedSaddlePlan,
+  mixedSaddleParentBuy,
+  mixedSaddleShopCopy,
+  safePlanFromJob,
+} from "@/lib/planner/plan";
 import {
   deleteSavedJob,
   loadSavedJobs,
@@ -716,6 +721,8 @@ function PlanCard({
   }, [recommendedKey, plan.job.finishW, plan.job.finishH, plan.job.qty]);
 
   const shown = parents.find((n) => nestKey(n) === layoutKey) ?? r;
+  const mixedSaddle = isMixedSaddlePlan(plan.job, plan.lines);
+  const mixedShop = mixedSaddle ? mixedSaddleShopCopy(plan.job, plan.lines) : null;
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
@@ -729,7 +736,13 @@ function PlanCard({
         </p>
       )}
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
-        {(plan.lines?.length ?? 0) > 1 ? (
+        {mixedShop ? (
+          <>
+            <Row k="Cover" v={mixedShop.cover} />
+            <Row k="Insides" v={mixedShop.insides} />
+            <Row k="Bind" v={mixedShop.bind} />
+          </>
+        ) : (plan.lines?.length ?? 0) > 1 ? (
           plan.lines!.map((line) => (
             <Row
               key={line.role}
@@ -744,11 +757,13 @@ function PlanCard({
           k="Parent to buy"
           term="parent"
           v={
-            r?.parent
-              ? r.saddle
-                ? `${r.parent.label} · ${r.sheetsToBuy} sheets · saddle signature ${r.signature ? `${r.signature.w}×${r.signature.h}` : ""} (${r.nUp}-up, 4 pages/sheet)`
-                : `${r.parent.label} · ${r.sheetsToBuy} sheets · ${r.nUp}-up`
-              : "No parent nest for this ticket."
+            mixedSaddle && plan.lines
+              ? mixedSaddleParentBuy(plan.lines)
+              : r?.parent
+                ? r.saddle
+                  ? `${r.parent.label} · ${r.sheetsToBuy} sheets · saddle signature ${r.signature ? `${r.signature.w}×${r.signature.h}` : ""} (${r.nUp}-up, 4 pages/sheet)`
+                  : `${r.parent.label} · ${r.sheetsToBuy} sheets · ${r.nUp}-up`
+                : "No parent nest for this ticket."
           }
         />
         <Row
