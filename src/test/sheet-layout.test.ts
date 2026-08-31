@@ -44,9 +44,12 @@ describe("saddle playbill layout is 11×17 in-line fold, not a gang split", () =
     expect(nest.parent.id).toBe("tabloid");
     expect(layout.pieces).toHaveLength(2);
     expect(layout.fold).toBeTruthy();
+    expect(nest.cuts.clicks).toBe(1);
+    expect(nest.cuts.faceTrims).toBe(1);
     expect(layout.cuts).toHaveLength(0);
     expect(layout.cutTally.splits).toBe(0);
-    expect(layout.caption).toMatch(/fold at the 17 in midline/i);
+    expect(layout.caption).toMatch(/17×11/);
+    expect(layout.caption).toMatch(/fold at the midline/i);
     expect(layout.caption).not.toMatch(/10×7/);
     expect(layout.caption).not.toMatch(/Cut 1: split to 8\.5×11/);
   });

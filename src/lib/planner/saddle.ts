@@ -198,7 +198,7 @@ export function nestInlineVersantBooklet(job: JobInput): NestResult {
   const faceTrim = needsInlineFaceTrim(job);
   const finishLabel = `${job.finishW}×${job.finishH}`;
   const why = faceTrim
-    ? `Cut count: 0 for the fold (fold is not a Challenge cut). 11×17 in-line folds to 8.5×11; trim to ${finishLabel} on the Challenge.`
+    ? `Cut count: 1. Fold is not a Challenge cut. 11×17 in-line folds to 8.5×11; then 1 face trim to ${finishLabel} on the Challenge.`
     : `Cut count: 0. Fold at the 17 in midline — not a letter cut. 0 splits, no face trim.`;
   return {
     ...base,
@@ -214,6 +214,8 @@ export function nestInlineVersantBooklet(job: JobInput): NestResult {
     buyScore: signatures * tabloid.buyWeight,
     cuts: {
       ...emptyCuts(why),
+      clicks: faceTrim ? 1 : 0,
+      splits: 0,
       faceTrims: faceTrim ? 1 : 0,
       faceTrimReasons: faceTrim ? ["8.5×11 book to finish after in-line fold"] : [],
       brief: faceTrim ? "0 splits, 1 face trim" : "0 splits, no face trim",

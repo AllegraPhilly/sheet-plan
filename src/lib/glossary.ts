@@ -24,7 +24,7 @@ export const GLOSSARY = {
   },
   cutClick: {
     label: "cut count",
-    def: "How many Challenge 305 CRT strokes on that parent. Splits between n-up pieces plus face trims (gripper leftover, trim/bleed, unused margin).",
+    def: "How many Challenge 305 CRT strokes on that parent. Splits between n-up pieces plus face trims (gripper leftover, trim/bleed, unused margin, or a post-fold face trim on the Challenge after in-line saddle). The in-line fold is not a cut.",
   },
   finish: {
     label: "finish W/H",
