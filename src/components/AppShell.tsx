@@ -3,25 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { GlossaryTip } from "@/components/GlossaryTip";
+import { navActive } from "@/lib/nav-active";
 import { publicUrl } from "@/lib/public-url";
 
 const NAV = [
-  { href: "/", label: "Planner" },
-  { href: "/mail/", label: "Mail Advisor" },
-  { href: "/floor/", label: "Floor list" },
-  { href: "/floor/wide/", label: "Wide (trial)" },
+  { href: "/", label: "Planner", short: "Planner" },
+  { href: "/mail/", label: "Mail Advisor", short: "Mail" },
+  { href: "/floor/", label: "Floor list", short: "Floor" },
+  { href: "/floor/wide/", label: "Wide (trial)", short: "Wide" },
 ];
-
-function navActive(pathname: string, href: string, hrefs: string[]): boolean {
-  if (href === "/") return pathname === "/" || pathname === "";
-  const prefix = href.replace(/\/$/, "");
-  if (!pathname.startsWith(prefix)) return false;
-  return !hrefs.some((other) => {
-    if (other === href) return false;
-    const op = other.replace(/\/$/, "");
-    return op.length > prefix.length && op.startsWith(prefix) && pathname.startsWith(op);
-  });
-}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -49,7 +39,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <GlossaryTip term="internal" align="end" />
           </div>
         </div>
-        <nav className="mx-auto flex max-w-6xl flex-wrap gap-0.5 px-3" aria-label="Primary">
+        <nav className="site-nav mx-auto max-w-6xl px-3" aria-label="Primary">
           {NAV.map((item) => {
             const active = navActive(pathname, item.href, NAV.map((n) => n.href));
             return (
@@ -58,7 +48,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 className={`nav-tab ${active ? "nav-tab-active" : ""}`}
               >
-                {item.label}
+                <span className="nav-label-short">{item.short}</span>
+                <span className="nav-label-full">{item.label}</span>
               </Link>
             );
           })}

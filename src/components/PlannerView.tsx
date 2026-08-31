@@ -219,7 +219,7 @@ export function PlannerView() {
               placeholder="Walk-up"
             />
           </label>
-          <label className="mb-3 block min-w-0 overflow-hidden text-sm font-semibold">
+          <label className="mb-3 block min-w-0 text-sm font-semibold">
             Job date
             <input
               type="date"
