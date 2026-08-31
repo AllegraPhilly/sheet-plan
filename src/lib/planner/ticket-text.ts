@@ -25,6 +25,17 @@ const COLOR_WORD: Record<JobInput["color"], string> = {
   mixed: "mixed",
 };
 
+export const MIXED_PACK_BINDS = ["saddle", "coil", "staple", "side-staple"] as const;
+export const MIXED_FLAT_BINDS = ["none", "laminate", "shrink", "drill"] as const;
+
+export function isMixedPackBind(bind: JobInput["bind"]): boolean {
+  return bind === "saddle" || bind === "coil" || bind === "staple" || bind === "side-staple";
+}
+
+export function isMixedFlatBind(bind: JobInput["bind"]): boolean {
+  return !isMixedPackBind(bind);
+}
+
 function clampInt(n: number, lo: number, hi: number): number {
   if (!Number.isFinite(n)) return lo;
   return Math.min(hi, Math.max(lo, n));
@@ -39,7 +50,16 @@ export function snapSignaturePages(n: number, pages: number): number {
   return Math.max(0, snapped);
 }
 
-/** Mixed flats: qty is the total. Color qty fills B&W as the remainder. */
+function alignColorPages(job: JobInput, colorPages: number, pages: number): number {
+  return job.bind === "saddle" ? snapSignaturePages(colorPages, pages) : clampInt(colorPages, 0, pages);
+}
+
+function packPages(job: JobInput): number {
+  if (typeof job.pages === "number" && Number.isFinite(job.pages) && job.pages > 0) return job.pages;
+  return job.bind === "saddle" ? 8 : 8;
+}
+
+/** Mixed flats: qty is the total. Color qty fills B&W as the remainder. Live on every keystroke. */
 export function setMixedColorQty(job: JobInput, colorQty: number): JobInput {
   const qty = Number.isFinite(job.qty) && job.qty > 0 ? job.qty : 1;
   const color = clampInt(colorQty, 0, qty);
@@ -53,30 +73,69 @@ export function setMixedBwQty(job: JobInput, bwQty: number): JobInput {
   return { ...job, qty, bwQty: bw, colorQty: qty - bw };
 }
 
-/** Mixed flats: changing the total keeps color qty and fills B&W. */
+/** Mixed flats: changing the total keeps color qty if it still fits, else clamp. */
 export function setMixedTotal(job: JobInput, qty: number): JobInput {
   const total = Math.max(1, Number.isFinite(qty) ? qty : 1);
   const color = clampInt(job.colorQty ?? total, 0, total);
   return { ...job, qty: total, colorQty: color, bwQty: total - color };
 }
 
-/** Mixed saddle: color pages default 4; B&W = pages − color. Both ÷4. */
+export function applyCoverSplit(job: JobInput): JobInput {
+  const pages = packPages(job);
+  const cover = alignColorPages(job, 4, pages);
+  return {
+    ...job,
+    pages,
+    mixedSplit: "cover",
+    colorPages: cover,
+    bwPages: Math.max(0, pages - cover),
+    colorQty: undefined,
+    bwQty: undefined,
+  };
+}
+
 export function setMixedColorPages(job: JobInput, colorPages: number): JobInput {
-  const pages = job.pages ?? 8;
-  const color = snapSignaturePages(colorPages, pages);
-  return { ...job, pages, colorPages: color, bwPages: Math.max(0, pages - color) };
+  const pages = packPages(job);
+  const color = alignColorPages(job, colorPages, pages);
+  return {
+    ...job,
+    pages,
+    mixedSplit: job.mixedSplit ?? "custom",
+    colorPages: color,
+    bwPages: Math.max(0, pages - color),
+  };
 }
 
 export function setMixedBwPages(job: JobInput, bwPages: number): JobInput {
-  const pages = job.pages ?? 8;
-  const bw = snapSignaturePages(bwPages, pages);
-  return { ...job, pages, bwPages: bw, colorPages: Math.max(0, pages - bw) };
+  const pages = packPages(job);
+  const bw = alignColorPages(job, bwPages, pages);
+  return {
+    ...job,
+    pages,
+    mixedSplit: job.mixedSplit ?? "custom",
+    bwPages: bw,
+    colorPages: Math.max(0, pages - bw),
+  };
 }
 
-export function setSaddlePageCount(job: JobInput, pages: number): JobInput {
+export function setPackPageCount(job: JobInput, pages: number): JobInput {
   const next: JobInput = { ...job, pages };
   if (job.color !== "mixed") return next;
-  return setMixedColorPages(next, job.colorPages ?? 4);
+  if (job.mixedSplit === "custom") return setMixedColorPages(next, job.colorPages ?? 4);
+  return applyCoverSplit(next);
+}
+
+/** @deprecated use setPackPageCount */
+export function setSaddlePageCount(job: JobInput, pages: number): JobInput {
+  return setPackPageCount(job, pages);
+}
+
+function packBindWord(bind: JobInput["bind"]): string {
+  if (bind === "saddle") return "saddle";
+  if (bind === "coil") return "coil";
+  if (bind === "staple") return "corner staple";
+  if (bind === "side-staple") return "side staple";
+  return "";
 }
 
 /** One line from the ticket fields so a phone user does not type a paragraph. */
@@ -96,22 +155,35 @@ export function autoDescription(
     | "bwPages"
     | "colorQty"
     | "bwQty"
+    | "mixedSplit"
   >,
 ): string {
   const qty = Number.isFinite(job.qty) && job.qty > 0 ? job.qty : 1;
   const finishW = Number.isFinite(job.finishW) && job.finishW > 0 ? job.finishW : 8.5;
   const finishH = Number.isFinite(job.finishH) && job.finishH > 0 ? job.finishH : 11;
+  if (job.color === "mixed" && isMixedPackBind(job.bind)) {
+    const pages = typeof job.pages === "number" && Number.isFinite(job.pages) ? job.pages : undefined;
+    const parts = [String(qty), "mixed", `${finishW}×${finishH}`];
+    if (pages != null) parts.push(`${pages}-page`);
+    const bindWord = packBindWord(job.bind);
+    if (bindWord) parts.push(bindWord);
+    const cover = job.mixedSplit !== "custom";
+    if (cover) {
+      parts.push("(color cover / B&W insides)");
+    } else {
+      const colorPages = job.colorPages ?? 0;
+      const bwPages = job.bwPages ?? (pages != null ? pages - colorPages : 0);
+      parts.push(`(${colorPages} color / ${bwPages} B&W)`);
+    }
+    if (job.substrate && job.substrate !== "paper") parts.push(job.substrate);
+    return parts.join(" ");
+  }
   if (job.bind === "saddle") {
     const pages = typeof job.pages === "number" && Number.isFinite(job.pages) ? job.pages : undefined;
     const parts = [String(qty), COLOR_WORD[job.color] ?? "color", `${finishW}×${finishH}`];
     if (job.color !== "mixed") parts.push("2-sided");
     if (pages != null) parts.push(`${pages}-page`);
-    parts.push(job.color === "mixed" ? "saddle" : "saddle booklet");
-    if (job.color === "mixed") {
-      const colorPages = job.colorPages ?? 0;
-      const bwPages = job.bwPages ?? (pages != null ? pages - colorPages : 0);
-      parts.push(`(${colorPages} color cover / ${bwPages} B&W)`);
-    }
+    parts.push("saddle booklet");
     if (job.substrate && job.substrate !== "paper") parts.push(job.substrate);
     return parts.join(" ");
   }
@@ -156,15 +228,46 @@ export function defaultTicket(): JobInput {
   return { ...job, description: autoDescription(job) };
 }
 
-export function applyMixedDefaults(job: JobInput): JobInput {
-  const next = { ...job };
-  if (job.color !== "mixed") return next;
-  if (job.bind === "saddle") {
-    const pages = job.pages && job.pages >= 4 ? job.pages : 8;
-    next.pages = pages;
-    next.sides = 2;
-    next.fold = "half";
-    return setMixedColorPages(next, job.colorPages ?? 4);
+export function mixedPackPageError(job: JobInput): string | null {
+  if (job.color !== "mixed" || !isMixedPackBind(job.bind) || job.bind === "saddle") return null;
+  const pages = job.pages;
+  if (typeof pages !== "number" || !Number.isFinite(pages) || pages < 2) {
+    return "Page count is required for a mixed booklet or multi-page pack.";
   }
-  return setMixedTotal(next, job.qty);
+  const colorPages = job.colorPages ?? 0;
+  const bwPages = job.bwPages ?? 0;
+  if (colorPages + bwPages !== pages) return "Color pages + B&W pages must equal the page count.";
+  return null;
+}
+
+/** Leaves to nest per press for a mixed pack. Qty is books, not a color/B&W sheet split. */
+export function mixedPackSheetQtys(job: JobInput): { color: number; bw: number } {
+  const pages = packPages(job);
+  const colorPages = job.colorPages ?? Math.min(4, pages);
+  const bwPages = job.bwPages ?? Math.max(0, pages - colorPages);
+  const sides = job.sides === 2 ? 2 : 1;
+  const books = Number.isFinite(job.qty) && job.qty > 0 ? job.qty : 1;
+  return {
+    color: books * Math.max(0, Math.ceil(colorPages / sides)),
+    bw: books * Math.max(0, Math.ceil(bwPages / sides)),
+  };
+}
+
+export function applyMixedDefaults(job: JobInput): JobInput {
+  if (job.color !== "mixed") return { ...job };
+  if (isMixedPackBind(job.bind)) {
+    const next: JobInput = { ...job };
+    if (job.bind === "saddle") {
+      next.sides = 2;
+      next.fold = "half";
+    }
+    if (job.mixedSplit === "custom") {
+      const pages = packPages(next);
+      next.pages = pages;
+      return setMixedColorPages(next, next.colorPages ?? 4);
+    }
+    return applyCoverSplit(next);
+  }
+  const flats = setMixedTotal({ ...job, mixedSplit: undefined, colorPages: undefined, bwPages: undefined }, job.qty);
+  return flats;
 }

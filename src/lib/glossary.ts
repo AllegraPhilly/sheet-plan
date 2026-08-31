@@ -48,7 +48,7 @@ export const GLOSSARY = {
   },
   mixed: {
     label: "mixed",
-    def: "Part color, part B&W on the same ticket. Qty is the total — color qty fills B&W as the remainder (0…total). Saddle: color pages default 4, B&W = pages − color, both whole signatures (÷4).",
+    def: "Part color, part B&W. Flats: Qty is the total; color qty fills B&W as you type. Booklets and stapled/coil packs: cover color + B&W insides (not a qty split). Saddle custom splits stay ÷4.",
   },
   size: {
     label: "size",

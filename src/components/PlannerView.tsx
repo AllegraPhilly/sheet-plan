@@ -18,15 +18,18 @@ import {
 import { commitNumberField, parseNumberDraft } from "@/lib/planner/num-field";
 import { applyFinishPreset, FINISH_PRESETS, matchFinishPreset, presetById } from "@/lib/planner/finish-sizes";
 import {
+  applyCoverSplit,
   applyMixedDefaults,
   autoDescription,
   defaultTicket,
+  isMixedFlatBind,
+  isMixedPackBind,
   setMixedBwPages,
   setMixedBwQty,
   setMixedColorPages,
   setMixedColorQty,
   setMixedTotal,
-  setSaddlePageCount,
+  setPackPageCount,
   todayISO,
 } from "@/lib/planner/ticket-text";
 import type { ColorPath, JobInput, ProductionPlan } from "@/lib/planner/types";
@@ -232,7 +235,7 @@ export function PlannerView() {
               value={job.qty}
               min={1}
               onChange={(n) => {
-                if (job.color === "mixed" && job.bind !== "saddle") {
+                if (job.color === "mixed" && isMixedFlatBind(job.bind)) {
                   setTouched(true);
                   setNotice(null);
                   setJob((j) => {
@@ -359,11 +362,11 @@ export function PlannerView() {
                       next.sides = 2;
                       next.fold = "half";
                       if (!next.pages || next.pages < 4) next.pages = 8;
-                      if (next.color === "mixed") next = applyMixedDefaults(next);
                     }
                     if (bind === "staple" || bind === "side-staple") {
                       next.fold = "none";
                     }
+                    if (next.color === "mixed") next = applyMixedDefaults(next);
                     if (!descDirtyRef.current) next.description = autoDescription(next);
                     return next;
                   });
@@ -379,7 +382,7 @@ export function PlannerView() {
                 <option value="shrink">Shrink</option>
               </select>
             </label>
-            {job.bind === "saddle" && (
+            {(job.bind === "saddle" || (job.color === "mixed" && isMixedPackBind(job.bind))) && (
               <Num
                 label="Pages"
                 term="saddle"
@@ -390,21 +393,52 @@ export function PlannerView() {
                   setTouched(true);
                   setNotice(null);
                   setJob((j) => {
-                    const next = setSaddlePageCount(j, n);
+                    const next = setPackPageCount(j, n);
                     if (!descDirtyRef.current) next.description = autoDescription(next);
                     return next;
                   });
                 }}
               />
             )}
-            {job.color === "mixed" && job.bind === "saddle" && (
+            {job.color === "mixed" && isMixedPackBind(job.bind) && (
+              <label className="min-w-0 text-sm font-semibold sm:col-span-2">
+                <TermLabel term="mixed">Mixed split</TermLabel>
+                <select
+                  className={fieldClass}
+                  value={job.mixedSplit ?? "cover"}
+                  onChange={(e) => {
+                    const mixedSplit = e.target.value as "cover" | "custom";
+                    setTouched(true);
+                    setNotice(null);
+                    setJob((j) => {
+                      const next =
+                        mixedSplit === "cover"
+                          ? applyCoverSplit({ ...j, mixedSplit })
+                          : setMixedColorPages({ ...j, mixedSplit: "custom" }, j.colorPages ?? 4);
+                      if (!descDirtyRef.current) next.description = autoDescription(next);
+                      return next;
+                    });
+                  }}
+                >
+                  <option value="cover">Cover color, insides B&W</option>
+                  <option value="custom">Custom page split</option>
+                </select>
+                {(job.mixedSplit ?? "cover") === "cover" && (
+                  <span className="mt-1 block text-xs font-normal opacity-70">
+                    Cover is 4 pages on Versant 4100. Remaining pages B&W on Accurio 6120. Qty is
+                    books, not a color/B&W sheet split.
+                  </span>
+                )}
+              </label>
+            )}
+            {job.color === "mixed" && isMixedPackBind(job.bind) && job.mixedSplit === "custom" && (
               <>
                 <Num
                   label="Color pages"
                   term="mixed"
                   value={job.colorPages ?? 4}
                   min={0}
-                  step={4}
+                  step={job.bind === "saddle" ? 4 : 1}
                   onChange={(n) => {
                     setTouched(true);
                     setNotice(null);
@@ -420,7 +454,7 @@ export function PlannerView() {
                   term="mixed"
                   value={job.bwPages ?? 0}
                   min={0}
-                  step={4}
+                  step={job.bind === "saddle" ? 4 : 1}
                   onChange={(n) => {
                     setTouched(true);
                     setNotice(null);
@@ -433,13 +467,11 @@ export function PlannerView() {
                 />
               </>
             )}
-            {job.color === "mixed" && job.bind !== "saddle" && (
+            {job.color === "mixed" && isMixedFlatBind(job.bind) && (
               <>
-                <Num
+                <MixedQty
                   label="Color qty"
-                  term="mixed"
                   value={job.colorQty ?? job.qty}
-                  min={0}
                   onChange={(n) => {
                     setTouched(true);
                     setNotice(null);
@@ -450,11 +482,9 @@ export function PlannerView() {
                     });
                   }}
                 />
-                <Num
+                <MixedQty
                   label="B&W qty"
-                  term="mixed"
-                  value={job.bwQty ?? 0}
-                  min={0}
+                  value={job.bwQty ?? Math.max(0, job.qty - (job.colorQty ?? job.qty))}
                   onChange={(n) => {
                     setTouched(true);
                     setNotice(null);
@@ -568,6 +598,50 @@ export function PlannerView() {
         )}
       </section>
     </div>
+  );
+}
+
+/** Live remainder field — onChange fires on every keystroke, including a cleared box (0). */
+function MixedQty({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? (Number.isFinite(value) ? String(value) : "");
+
+  useEffect(() => {
+    if (draft === null) return;
+    const parsed = parseNumberDraft(draft);
+    if (parsed !== value && !(parsed === null && value === 0)) setDraft(null);
+  }, [value, draft]);
+
+  return (
+    <label className="min-w-0 text-sm font-semibold">
+      <TermLabel term="mixed">{label}</TermLabel>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        step={1}
+        className={fieldClass}
+        value={shown}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setDraft(raw);
+          const parsed = parseNumberDraft(raw);
+          onChange(parsed === null ? 0 : parsed);
+        }}
+        onBlur={() => {
+          onChange(commitNumberField(draft ?? shown, { min: 0, fallback: value }));
+          setDraft(null);
+        }}
+      />
+    </label>
   );
 }
 

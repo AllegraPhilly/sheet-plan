@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { alternateParentHint } from "@/lib/planner/cut-count";
 import { planFromJob } from "@/lib/planner/plan";
 import {
+  applyCoverSplit,
   applyMixedDefaults,
-  setMixedBwPages,
+  autoDescription,
+  isMixedFlatBind,
+  isMixedPackBind,
+  mixedPackSheetQtys,
   setMixedBwQty,
   setMixedColorPages,
   setMixedColorQty,
   setMixedTotal,
-  setSaddlePageCount,
+  setPackPageCount,
 } from "@/lib/planner/ticket-text";
 import { PARENTS, type JobInput, type NestResult } from "@/lib/planner/types";
 
@@ -25,34 +30,49 @@ const mixedFlat = (over: Partial<JobInput> = {}): JobInput => ({
   ...over,
 });
 
-describe("mixed remainder — qty is the total", () => {
-  it("Color qty 250 of 500 fills B&W 250 and does not change the total", () => {
+describe("A) mixed flats remainder — live qty split", () => {
+  it("500 qty + Color 250 fills B&W 250 on the ticket fields (not after PLAN)", () => {
     const started = applyMixedDefaults(mixedFlat());
     expect(started.colorQty).toBe(500);
     expect(started.bwQty).toBe(0);
-    const next = setMixedColorQty(started, 250);
-    expect(next.qty).toBe(500);
-    expect(next.colorQty).toBe(250);
-    expect(next.bwQty).toBe(250);
+    const typed = [2, 25, 250].reduce((job, n) => setMixedColorQty(job, n), started);
+    expect(typed.qty).toBe(500);
+    expect(typed.colorQty).toBe(250);
+    expect(typed.bwQty).toBe(250);
+    expect(autoDescription(typed)).toBe("500 mixed 8.5×11 (250 color / 250 B&W)");
   });
 
-  it("editing B&W fills Color = total − B&W and clamps 0…total", () => {
+  it("editing B&W recomputes Color; both always sum to Qty; clamp 0…total", () => {
     const base = setMixedColorQty(mixedFlat(), 250);
     const next = setMixedBwQty(base, 100);
     expect(next.qty).toBe(500);
-    expect(next.bwQty).toBe(100);
+    expect(next.bwQty + next.colorQty!).toBe(500);
     expect(next.colorQty).toBe(400);
+    expect(setMixedColorQty(base, 0).bwQty).toBe(500);
     expect(setMixedColorQty(base, 900).colorQty).toBe(500);
-    expect(setMixedColorQty(base, 900).bwQty).toBe(0);
-    expect(setMixedBwQty(base, -3).bwQty).toBe(0);
     expect(setMixedBwQty(base, -3).colorQty).toBe(500);
   });
 
-  it("changing the total keeps color qty and fills B&W", () => {
-    const next = setMixedTotal(setMixedColorQty(mixedFlat(), 250), 600);
-    expect(next.qty).toBe(600);
-    expect(next.colorQty).toBe(250);
-    expect(next.bwQty).toBe(350);
+  it("changing Qty keeps Color if it still fits, else clamp, and refreshes B&W", () => {
+    const keep = setMixedTotal(setMixedColorQty(mixedFlat(), 250), 600);
+    expect(keep).toMatchObject({ qty: 600, colorQty: 250, bwQty: 350 });
+    const clamp = setMixedTotal(setMixedColorQty(mixedFlat(), 250), 200);
+    expect(clamp).toMatchObject({ qty: 200, colorQty: 200, bwQty: 0 });
+  });
+
+  it("laminate / shrink / drill stay on the qty remainder; packs do not", () => {
+    expect(isMixedFlatBind("laminate")).toBe(true);
+    expect(isMixedFlatBind("shrink")).toBe(true);
+    expect(isMixedFlatBind("drill")).toBe(true);
+    expect(isMixedFlatBind("none")).toBe(true);
+    expect(isMixedPackBind("saddle")).toBe(true);
+    expect(isMixedPackBind("coil")).toBe(true);
+    expect(isMixedPackBind("staple")).toBe(true);
+    expect(isMixedPackBind("side-staple")).toBe(true);
+    const lam = applyMixedDefaults(mixedFlat({ bind: "laminate" }));
+    expect(lam.colorQty).toBe(500);
+    expect(lam.bwQty).toBe(0);
+    expect(applyMixedDefaults(mixedFlat({ bind: "saddle", pages: 20 })).colorQty).toBeUndefined();
   });
 
   it("still splits Versant vs Accurio on the remainder", () => {
@@ -66,8 +86,8 @@ describe("mixed remainder — qty is the total", () => {
   });
 });
 
-describe("mixed saddle remainder — sum is page count, both ÷4", () => {
-  it("defaults color pages to 4 and B&W to the rest", () => {
+describe("B) mixed packs — cover/insides, never a qty split", () => {
+  it("saddle default is color cover / B&W insides; job line is not 250+250 sheets", () => {
     const next = applyMixedDefaults({
       ...mixedFlat(),
       bind: "saddle",
@@ -75,29 +95,58 @@ describe("mixed saddle remainder — sum is page count, both ÷4", () => {
       sides: 2,
       pages: 20,
     });
+    expect(next.mixedSplit).toBe("cover");
     expect(next.colorPages).toBe(4);
     expect(next.bwPages).toBe(16);
+    expect(next.colorQty).toBeUndefined();
+    expect(next.qty).toBe(500);
+    expect(autoDescription(next)).toBe("500 mixed 8.5×11 20-page saddle (color cover / B&W insides)");
+    expect(autoDescription(next)).not.toMatch(/250 color \/ 250 B&W/);
   });
 
-  it("editing either side keeps the sum and snaps to signatures", () => {
-    const base = applyMixedDefaults({
+  it("custom page split sums to page count; saddle still snaps ÷4", () => {
+    const base = applyCoverSplit({
       ...mixedFlat(),
       bind: "saddle",
       fold: "half",
       sides: 2,
       pages: 20,
     });
-    const color = setMixedColorPages(base, 7);
+    const color = setMixedColorPages({ ...base, mixedSplit: "custom" }, 7);
     expect(color.colorPages).toBe(8);
     expect(color.bwPages).toBe(12);
-    expect(color.pages).toBe(20);
-    const bw = setMixedBwPages(base, 4);
-    expect(bw.bwPages).toBe(4);
-    expect(bw.colorPages).toBe(16);
-    const pages = setSaddlePageCount(base, 12);
+    expect(autoDescription(color)).toBe("500 mixed 8.5×11 20-page saddle (8 color / 12 B&W)");
+    const pages = setPackPageCount(base, 12);
     expect(pages.pages).toBe(12);
     expect(pages.colorPages).toBe(4);
     expect(pages.bwPages).toBe(8);
+  });
+
+  it("coil and corner staple mixed use pages, not Color qty / B&W qty", () => {
+    const coil = applyMixedDefaults({ ...mixedFlat(), bind: "coil", sides: 2, pages: 20 });
+    expect(coil.mixedSplit).toBe("cover");
+    expect(coil.colorPages).toBe(4);
+    expect(coil.bwPages).toBe(16);
+    expect(coil.colorQty).toBeUndefined();
+    expect(autoDescription(coil)).toMatch(/color cover \/ B&W insides/);
+    expect(autoDescription(coil)).not.toMatch(/250 color \/ 250 B&W/);
+    const qtys = mixedPackSheetQtys(coil);
+    expect(qtys.color).toBe(500 * 2);
+    expect(qtys.bw).toBe(500 * 8);
+    const plan = planFromJob(coil);
+    expect(plan.lines).toHaveLength(2);
+    expect(plan.lines![0].press.machineId).toBe("versant-4100");
+    expect(plan.lines![1].press.machineId).toBe("accurio-6120");
+    expect(plan.why.join(" ")).toMatch(/500 books/);
+    expect(plan.why.join(" ")).toMatch(/Color cover \(4 pages\)/);
+  });
+
+  it("ticket markup hides Color qty on pack binds and shows cover split", () => {
+    const ui = readFileSync(new URL("../components/PlannerView.tsx", import.meta.url), "utf8");
+    expect(ui).toMatch(/Cover color, insides B&W/);
+    expect(ui).toMatch(/isMixedFlatBind\(job\.bind\)/);
+    expect(ui).toMatch(/function MixedQty/);
+    expect(ui).toMatch(/onChange\(parsed === null \? 0 : parsed\)/);
   });
 });
 

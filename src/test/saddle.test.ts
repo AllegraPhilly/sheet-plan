@@ -273,7 +273,7 @@ describe("mixed color saddle", () => {
     expect(plan.lines![0].nest.saddle).toBe(true);
     expect(plan.finishing.map((s) => s.machineId)).toContain("graphic-whizard-creasemaster-plus-ts");
     expect(plan.finishing.map((s) => s.machineId)).toContain("salco-rapid-106e");
-    expect(autoDescription(plan.job)).toMatch(/4 color cover \/ 16 B&W/);
+    expect(autoDescription(plan.job)).toMatch(/color cover \/ B&W insides/);
   });
 
   it("mixed pages that do not sum are a hard error", () => {

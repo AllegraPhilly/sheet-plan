@@ -12,6 +12,7 @@ import {
   saddlePageError,
   sheetsPerSaddleBooklet,
 } from "./saddle";
+import { isMixedPackBind, mixedPackPageError, mixedPackSheetQtys } from "./ticket-text";
 import {
   PARENTS,
   VERSANT_PLAN_MAX,
@@ -234,6 +235,9 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
     if (pageErr) throw new Error(pageErr);
     const mixedErr = mixedSaddleError(job);
     if (mixedErr) throw new Error(mixedErr);
+  } else {
+    const packErr = mixedPackPageError(job);
+    if (packErr) throw new Error(packErr);
   }
 
   let recommended: NestResult;
@@ -266,6 +270,26 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
       const chosen = choosePress({ ...job, color: job.color === "bw" ? "bw" : "color" });
       press = chosen.press;
       also = chosen.also;
+    }
+  } else if (job.color === "mixed" && job.substrate === "paper" && isMixedPackBind(job.bind)) {
+    const qtys = mixedPackSheetQtys(job);
+    const built: PressLine[] = [];
+    if (qtys.color > 0) {
+      const nest = paperNest({ ...job, qty: qtys.color, color: "color" });
+      built.push({ role: "color", press: pressForPath("color"), nest });
+    }
+    if (qtys.bw > 0) {
+      const nest = paperNest({ ...job, qty: qtys.bw, color: "bw" });
+      built.push({ role: "bw", press: pressForPath("bw"), nest });
+    }
+    if (built.length === 0) {
+      recommended = paperNest(job);
+      press = pressForPath("color");
+    } else {
+      lines = built;
+      recommended = built[0].nest;
+      press = built[0].press;
+      alternatives = rankParents({ ...job, qty: qtys.color || qtys.bw, color: "color" }).slice(1);
     }
   } else if (job.color === "mixed" && job.substrate === "paper") {
     const qtys = mixedFlatQtys(job);
@@ -303,6 +327,14 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
     why.push(...saddleWhy(job, recommended, press, lines));
   } else if (job.substrate === "paper") {
     if (lines && lines.length > 1) {
+      if (isMixedPackBind(job.bind)) {
+        const pages = job.pages ?? 8;
+        const colorPages = job.colorPages ?? Math.min(4, pages);
+        const bwPages = job.bwPages ?? Math.max(0, pages - colorPages);
+        why.push(
+          `${job.qty} books/sets. Color cover (${colorPages} pages) on Versant 4100. B&W insides (${bwPages} pages) on Accurio 6120.`,
+        );
+      }
       for (const line of lines) {
         const who = line.role === "color" ? "Color" : "B&W";
         why.push(
