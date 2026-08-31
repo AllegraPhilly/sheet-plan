@@ -220,8 +220,9 @@ h3,
   font-size: 1rem;
 }
 
-/* iOS date controls default to a naked underline unless appearance is reset.
-   Do not use overflow:hidden here — it clips the native picker. */
+/* iOS/Chrome date controls default to a naked underline unless appearance
+   and the inner datetime chrome are reset. Do not use overflow:hidden —
+   it clips the native picker. Height comes from the same .field padding. */
 input[type="date"].field {
   -webkit-appearance: none;
   appearance: none;
@@ -230,15 +231,36 @@ input[type="date"].field {
   max-width: 100%;
   width: 100%;
   box-sizing: border-box;
-  min-height: 2.75rem;
+  margin-top: 0.25rem;
+  padding: 0.55rem 0.65rem;
   border: 1px solid var(--line);
+  border-style: solid;
   border-radius: 8px;
   background-color: #fff;
+  background-image: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.25;
+  color-scheme: light;
 }
 
 input[type="date"].field::-webkit-date-and-time-value {
   text-align: left;
   min-height: 1.25em;
+  border: 0;
+  background: transparent;
+}
+
+input[type="date"].field::-webkit-datetime-edit,
+input[type="date"].field::-webkit-datetime-edit-fields-wrapper,
+input[type="date"].field::-webkit-datetime-edit-text,
+input[type="date"].field::-webkit-datetime-edit-month-field,
+input[type="date"].field::-webkit-datetime-edit-day-field,
+input[type="date"].field::-webkit-datetime-edit-year-field {
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .field:focus {
