@@ -48,7 +48,7 @@ export const GLOSSARY = {
   },
   mixed: {
     label: "mixed",
-    def: "Part color, part B&W on the same ticket. Saddle: color pages + B&W pages = page count (cover signature is usually 4 color). Flats: color qty + B&W qty on the same finish.",
+    def: "Part color, part B&W. Flats: Qty is the total; color qty fills B&W as you type (two stacks: Versant + Accurio — separate jobs). Booklets and stapled/coil packs: cover color + B&W insides describes the job; PLAN is one Versant stack. Don’t split cover/insides across presses (too much handling). Saddle custom splits stay ÷4. Bind that stack off-press (Whizard / Baum / Salco).",
   },
   size: {
     label: "size",

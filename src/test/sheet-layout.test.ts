@@ -73,7 +73,7 @@ describe("sheet layout geometry", () => {
     expect(layout.caption).toMatch(/Repeat 2-up, all same way/);
     expect(layout.caption).toMatch(/Sheet turned for feed/);
     expect(layout.caption).toMatch(/Cut 1: split to 8\.5×11/);
-    expect(layout.caption).toMatch(/Cut count: 1/);
+    expect(layout.caption).not.toMatch(/Cut count:/);
     expect(layout.cutTally).toMatchObject({ clicks: 1, splits: 1, faceTrims: 0 });
   });
 
@@ -97,8 +97,9 @@ describe("sheet layout geometry", () => {
       { n: 2, axis: "v", x: 6, y: 0 },
     ]);
     expect(layout.caption).toBe(
-      "Repeat 4-up, all same way. Cut 1: split to strips. Cut 2: cut strips to 6×9. Cut count: 2.",
+      "Repeat 4-up, all same way. Cut 1: split to strips. Cut 2: cut strips to 6×9.",
     );
+    expect(layout.caption).not.toMatch(/Cut count:/);
     expect(layout.cutTally).toMatchObject({
       clicks: 2,
       splits: 2,
@@ -158,7 +159,7 @@ describe("sheet layout geometry", () => {
     expect(layout.cutTally.faceTrimReasons).toEqual(
       expect.arrayContaining(["gripper leftover", "trim/bleed edges", "unused parent margin"]),
     );
-    expect(layout.caption).toMatch(/Cut count: \d+/);
+    expect(layout.caption).not.toMatch(/Cut count:/);
   });
 
   it("same-size letter is 1-up with no cut lines", () => {
@@ -171,7 +172,7 @@ describe("sheet layout geometry", () => {
     expect(layout.needsFileRotate).toBe(false);
     expect(layout.pieces[0].finish).toEqual({ x: 0, y: 0, w: 8.5, h: 11 });
     expect(layout.cutTally).toMatchObject({ clicks: 0, splits: 0, faceTrims: 0 });
-    expect(layout.caption).toMatch(/Cut count: 0/);
+    expect(layout.caption).not.toMatch(/Cut count:/);
   });
 });
 

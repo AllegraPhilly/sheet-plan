@@ -1,4 +1,5 @@
 import type { ColorPath, JobInput } from "./types";
+import { isMixedPackBind } from "./ticket-text";
 
 const SIZE_ALIASES: Record<string, { w: number; h: number }> = {
   letter: { w: 8.5, h: 11 },
@@ -78,8 +79,9 @@ export function parseJobText(description: string, fallback?: Partial<JobInput>):
 
   let bind: JobInput["bind"] = fallback?.bind ?? "none";
   if (/\b(coil|spiral)\b/.test(text)) bind = "coil";
+  else if (/\bside[\s-]?staple/.test(text)) bind = "side-staple";
   else if (/\b(saddle([\s-]?stitch|[\s-]?booklet)?|booklet)\b/.test(text)) bind = "saddle";
-  else if (/\b(staple|stitch)\b/.test(text)) bind = "staple";
+  else if (/\b(corner[\s-]?staple|staple|stitch)\b/.test(text)) bind = "staple";
   else if (/\b(3[\s-]?hole|drill)\b/.test(text)) bind = "drill";
   else if (/\blaminat/.test(text)) bind = "laminate";
   else if (/\bshrink/.test(text)) bind = "shrink";
@@ -102,15 +104,26 @@ export function parseJobText(description: string, fallback?: Partial<JobInput>):
   let bwPages = fallback?.bwPages;
   let colorQty = fallback?.colorQty;
   let bwQty = fallback?.bwQty;
+  let mixedSplit: JobInput["mixedSplit"] = fallback?.mixedSplit;
   const coverMix = text.match(/(\d+)\s*color(?:\s*cover)?\s*\/\s*(\d+)\s*b\s*&\s*w/);
-  if (coverMix) {
+  const insides = /\bcolor cover\b/.test(text) && /\binsides\b/.test(text);
+  if (insides) {
+    color = "mixed";
+    mixedSplit = "cover";
+    if (pages) {
+      colorPages = colorPages ?? Math.min(4, pages);
+      bwPages = bwPages ?? pages - colorPages;
+    }
+  } else if (coverMix) {
     colorPages = Number(coverMix[1]);
     bwPages = Number(coverMix[2]);
     color = "mixed";
-  } else if (color === "mixed" && bind === "saddle" && pages) {
+    mixedSplit = Number(coverMix[1]) === 4 ? "cover" : "custom";
+  } else if (color === "mixed" && isMixedPackBind(bind) && pages) {
+    mixedSplit = mixedSplit ?? "cover";
     colorPages = colorPages ?? Math.min(4, pages);
     bwPages = bwPages ?? pages - colorPages;
-  } else if (color === "mixed" && bind !== "saddle") {
+  } else if (color === "mixed" && !isMixedPackBind(bind)) {
     const split = text.match(/(\d+)\s*color\s*\/\s*(\d+)\s*b\s*&\s*w/);
     if (split) {
       colorQty = Number(split[1]);
@@ -135,6 +148,7 @@ export function parseJobText(description: string, fallback?: Partial<JobInput>):
     bwPages,
     colorQty,
     bwQty,
+    mixedSplit,
     stockHint,
     substrate,
     scannedOriginal,

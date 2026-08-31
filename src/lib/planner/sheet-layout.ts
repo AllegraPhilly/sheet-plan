@@ -1,4 +1,4 @@
-import { cutCountCaption, nestFrame, tallyGuillotine, type CutTally } from "./cut-count";
+import { nestFrame, tallyGuillotine, type CutTally } from "./cut-count";
 import { repeatCaption } from "./nest";
 import { type JobInput, type NestResult } from "./types";
 
@@ -195,9 +195,9 @@ export function layoutFromNest(
     originY,
     caption: saddle
       ? classicLetter
-        ? `Saddle signature. Fold at the 17 in midline. 4 pages per sheet. Not a letter cut. ${cutCountCaption(0)}`
-        : `Saddle signature ${sig.w}×${sig.h} (${nUp}-up). 4 pages per sheet. Fold at the midline. Not a letter 2-up cut. ${cutCountCaption(cutTally.clicks)}`
-      : `${repeatCaption({ w: finish.finishW, h: finish.finishH }, nest)} ${cutCountCaption(cutTally.clicks)}`,
+        ? `Saddle signature. Fold at the 17 in midline. 4 pages per sheet. Not a letter cut.`
+        : `Saddle signature ${sig.w}×${sig.h} (${nUp}-up). 4 pages per sheet. Fold at the midline. Not a letter 2-up cut.`
+      : `${repeatCaption({ w: finish.finishW, h: finish.finishH }, nest)}`,
     cutTally,
   };
 }

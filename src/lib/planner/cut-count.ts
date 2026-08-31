@@ -194,3 +194,14 @@ export function emptyCuts(why: string): NestResult["cuts"] {
 export function cutCountCaption(clicks: number): string {
   return `Cut count: ${clicks}.`;
 }
+
+/** Alternate parent copy — never the ticket "Cut count:" heading. */
+export function alternateParentHint(nest: Pick<NestResult, "parent" | "nUp" | "cuts">): string {
+  const parent = nest.parent.id === "letter" ? "letter" : nest.parent.label;
+  const nUp = `${nest.nUp}-up`;
+  const { faceTrims, splits, clicks, brief } = nest.cuts;
+  if (faceTrims > 0 && splits === 0) return `if ${parent} ${nUp} instead: ${faceTrims} face trims`;
+  if (splits > 0 && faceTrims === 0) return `if ${parent} ${nUp} instead: ${splits} splits`;
+  if (clicks === 0) return `if ${parent} ${nUp} instead: no Challenge cut`;
+  return `if ${parent} ${nUp} instead: ${brief}`;
+}

@@ -33,9 +33,9 @@ export function MailAdvisorView() {
       <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-[var(--stamp)]">
         Staff Mail Advisor — not a customer chatbot
       </p>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
         <form className="ticket p-3 sm:p-4" onSubmit={(e) => e.preventDefault()}>
-          <h2 className="ticket-head text-3xl">PIECE</h2>
+          <h2 className="ticket-head">PIECE</h2>
           <label className="mt-3 block text-sm font-semibold">
             Notes
             <input
@@ -60,8 +60,8 @@ export function MailAdvisorView() {
               <option value="card">Card</option>
             </select>
           </label>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <label className="text-sm font-semibold">
+          <div className="mt-3 grid min-w-0 grid-cols-2 gap-3">
+            <label className="min-w-0 text-sm font-semibold">
               Qty
               <input
                 type="number"
@@ -70,7 +70,7 @@ export function MailAdvisorView() {
                 onChange={(e) => patch("qty", Number(e.target.value))}
               />
             </label>
-            <label className="text-sm font-semibold">
+            <label className="min-w-0 text-sm font-semibold">
               Weight (oz)
               <input
                 type="number"
@@ -80,7 +80,7 @@ export function MailAdvisorView() {
                 onChange={(e) => patch("weightOz", Number(e.target.value))}
               />
             </label>
-            <label className="text-sm font-semibold">
+            <label className="min-w-0 text-sm font-semibold">
               W (in)
               <input
                 type="number"
@@ -90,7 +90,7 @@ export function MailAdvisorView() {
                 onChange={(e) => patch("widthIn", Number(e.target.value))}
               />
             </label>
-            <label className="text-sm font-semibold">
+            <label className="min-w-0 text-sm font-semibold">
               H (in)
               <input
                 type="number"
@@ -164,13 +164,13 @@ export function MailAdvisorView() {
         </form>
 
         <section className="ticket p-3 sm:p-4">
-          <h2 className="ticket-head text-3xl">ADVICE</h2>
+          <h2 className="ticket-head">ADVICE</h2>
           <p className="mt-2 text-sm">{advice.contentGate.why}</p>
 
-          <h3 className="ticket-head mt-6 text-2xl">Actionable now</h3>
+          <h3 className="ticket-head mt-6">Actionable now</h3>
           <CellTable cells={advice.actionable} empty="No hardcoded actionable cell for this piece." />
 
-          <h3 className="ticket-head mt-6 text-2xl">Once eligible</h3>
+          <h3 className="ticket-head mt-6">Once eligible</h3>
           <p className="text-sm opacity-70">
             <TermLabel term="permit">Permit/CRID</TermLabel> commercial MM and FCM presort are{" "}
             <strong>NOT OPEN</strong>. Cells stay visible with{" "}
@@ -181,12 +181,12 @@ export function MailAdvisorView() {
           </p>
           <CellTable cells={advice.onceEligible} empty="No MM / comm FCM cell for this shape." />
 
-          <h3 className="ticket-head mt-6 text-2xl">Fees (p.33)</h3>
+          <h3 className="ticket-head mt-6">Fees (p.33)</h3>
           <CellTable cells={advice.fees} empty="" />
 
           {advice.missing.length > 0 && (
             <>
-              <h3 className="ticket-head mt-6 text-2xl">See Notice 123</h3>
+              <h3 className="ticket-head mt-6">See Notice 123</h3>
               <ul className="mt-2 list-disc pl-5 text-sm">
                 {advice.missing.map((m) => (
                   <li key={m}>{m}</li>
@@ -195,7 +195,7 @@ export function MailAdvisorView() {
             </>
           )}
 
-          <h3 className="ticket-head mt-6 text-2xl">Speed</h3>
+          <h3 className="ticket-head mt-6">Speed</h3>
           <ul className="mt-2 list-disc pl-5 text-sm">
             <li>
               <TermLabel term="fcm">First-Class (FCM)</TermLabel> — {advice.speed.fcm}
@@ -219,7 +219,7 @@ export function MailAdvisorView() {
             </p>
           )}
 
-          <h3 className="ticket-head mt-6 text-2xl">Induction</h3>
+          <h3 className="ticket-head mt-6">Induction</h3>
           <p className="mt-2 text-sm">
             {advice.induction.bmeu.name}: {advice.induction.bmeu.address}, {advice.induction.bmeu.city}{" "}
             {advice.induction.bmeu.zip}

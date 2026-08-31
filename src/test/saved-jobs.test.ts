@@ -63,7 +63,7 @@ describe("auto ticket line", () => {
         bind: "staple",
         substrate: "envelope",
       }),
-    ).toBe("250 B&W 8.5×11 1-sided letter fold stitch envelope");
+    ).toBe("250 B&W 8.5×11 1-sided letter fold corner staple envelope");
   });
 
   it("todayISO is local Y-M-D, not a UTC day shift", () => {

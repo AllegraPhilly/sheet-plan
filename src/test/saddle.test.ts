@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { layoutFromNest } from "@/lib/planner/sheet-layout";
 import { parseJobText } from "@/lib/planner/parse-job";
-import { planFromDescription, planFromJob, safePlanFromJob } from "@/lib/planner/plan";
+import { MIXED_BOOKLET_WHY, planFromDescription, planFromJob, safePlanFromJob } from "@/lib/planner/plan";
 import { SADDLE_PAGES_ERROR, nestSaddle } from "@/lib/planner/saddle";
 import { autoDescription } from "@/lib/planner/ticket-text";
 import type { JobInput } from "@/lib/planner/types";
@@ -83,22 +83,37 @@ describe("saddle booklet plan", () => {
     expect(ids).toContain("salco-rapid-106e");
   });
 
-  it("Stitch stays the corner/side staple path, not saddle", () => {
+  it("Corner staple stays the flats nest path, not saddle", () => {
     const plan = planFromJob({
       ...saddleJob(),
       bind: "staple",
       pages: undefined,
       fold: "none",
       sides: 1,
-      description: "100 color 8.5x11 stitch",
+      description: "100 color 8.5x11 corner staple",
     });
     expect(plan.recommended.saddle).toBeFalsy();
     expect(plan.recommended.parent.id).toBe("tabloid");
     expect(plan.recommended.nUp).toBe(2);
     expect(plan.recommended.cuts.clicks).toBe(1);
     expect(plan.finishing.some((s) => s.machineId === "challenge-305-crt")).toBe(true);
-    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).toMatch(/stitch/i);
-    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).not.toMatch(/saddle stitch on the 11/i);
+    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).toMatch(/corner staple/i);
+    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).not.toMatch(/saddle stitch/i);
+  });
+
+  it("Side staple is flats n-up then Salco along the left edge", () => {
+    const plan = planFromJob({
+      ...saddleJob(),
+      bind: "side-staple",
+      pages: undefined,
+      fold: "none",
+      sides: 1,
+      description: "100 color 8.5x11 side staple",
+    });
+    expect(plan.recommended.saddle).toBeFalsy();
+    expect(plan.recommended.nUp).toBe(2);
+    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).toMatch(/side staple/i);
+    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).not.toMatch(/saddle stitch/i);
   });
 
   it("page count not divisible by 4 is a hard error — no plan, no blank padding", () => {
@@ -144,7 +159,7 @@ describe("saddle layout is a fold, not Cut 1", () => {
     expect(layout.parent).toMatchObject({ w: 17, h: 11, label: "11×17" });
     expect(layout.caption).toMatch(/saddle signature/i);
     expect(layout.caption).toMatch(/fold at the 17 in midline/i);
-    expect(layout.caption).toMatch(/Cut count: 0/);
+    expect(layout.caption).not.toMatch(/Cut count:/);
     expect(layout.caption).not.toMatch(/Cut 1:/);
   });
 });
@@ -158,10 +173,11 @@ describe("saddle parse and ticket line", () => {
     expect(job.fold).toBe("half");
   });
 
-  it("stitch / staple without saddle stays stitch", () => {
+  it("stitch / corner staple without saddle stays corner staple", () => {
     const job = parseJobText("100 color 8.5x11 stitch");
     expect(job.bind).toBe("staple");
     expect(job.pages).toBeUndefined();
+    expect(parseJobText("100 color 8.5x11 side staple").bind).toBe("side-staple");
   });
 
   it("auto line names saddle booklet and page count", () => {
@@ -238,10 +254,10 @@ describe("any-size saddle — 2×2", () => {
 });
 
 describe("mixed color saddle", () => {
-  it("20-page mixed defaults 4 color cover / 16 B&W on two presses", () => {
+  it("20-page mixed is one Versant nest for the whole book — Accurio stays off the ticket", () => {
     const plan = planFromJob(
       saddleJob({
-        description: "585 mixed 5×7 20-page saddle (4 color cover / 16 B&W)",
+        description: "585 mixed 5×7 20-page saddle (color cover / B&W insides)",
         qty: 585,
         finishW: 5,
         finishH: 7,
@@ -249,15 +265,36 @@ describe("mixed color saddle", () => {
         color: "mixed",
         colorPages: 4,
         bwPages: 16,
+        mixedSplit: "cover",
       }),
     );
-    expect(plan.lines).toHaveLength(2);
-    expect(plan.lines![0]).toMatchObject({ role: "color", press: { machineId: "versant-4100" } });
-    expect(plan.lines![1]).toMatchObject({ role: "bw", press: { machineId: "accurio-6120" } });
-    expect(plan.lines![0].nest.saddle).toBe(true);
+    expect(plan.press.machineId).toBe("versant-4100");
+    expect(plan.press.action).toBe(MIXED_BOOKLET_WHY);
+    expect(plan.lines).toBeUndefined();
+    expect(plan.recommended.saddle).toBe(true);
+    expect(plan.recommended.sheetsToBuy).toBe(nestSaddle(plan.job).sheetsToBuy);
+    expect(plan.recommended.sheetsToBuy).toBeGreaterThan(0);
     expect(plan.finishing.map((s) => s.machineId)).toContain("graphic-whizard-creasemaster-plus-ts");
+    expect(plan.finishing.map((s) => s.machineId)).toContain("baumfolder-714");
     expect(plan.finishing.map((s) => s.machineId)).toContain("salco-rapid-106e");
-    expect(autoDescription(plan.job)).toMatch(/4 color cover \/ 16 B&W/);
+    expect(plan.finishing.map((s) => s.machineId)).not.toContain("accurio-6120");
+    expect(autoDescription(plan.job)).toMatch(/color cover \/ B&W insides/);
+    const ticket = [
+      plan.press.machineId,
+      plan.press.action,
+      ...plan.why,
+      ...plan.finishing.map((s) => `${s.machineId} ${s.action}`),
+    ].join(" ");
+    expect(ticket).not.toMatch(/accurio/i);
+    expect(ticket).not.toMatch(/Konica/i);
+    expect(ticket).not.toMatch(/two stacks/i);
+    expect(ticket).not.toMatch(/gather off-press/i);
+    expect(ticket).not.toMatch(/in-line/i);
+    expect(plan.why).toContain(MIXED_BOOKLET_WHY);
+    expect(plan.why.join(" ")).toMatch(/Baumfolder 714/);
+    expect(plan.why.join(" ")).toMatch(/Salco Rapid 106E/);
+    expect(plan.why.join(" ")).toMatch(/Whizard/);
+    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).toMatch(/saddle stitch/i);
   });
 
   it("mixed pages that do not sum are a hard error", () => {

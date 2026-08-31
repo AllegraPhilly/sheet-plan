@@ -31,18 +31,20 @@ export type JobInput = {
   color: ColorPath;
   sides: 1 | 2;
   stockHint?: string;
-  bind?: "none" | "staple" | "saddle" | "coil" | "drill" | "laminate" | "shrink";
+  bind?: "none" | "staple" | "side-staple" | "saddle" | "coil" | "drill" | "laminate" | "shrink";
   fold?: "none" | "half" | "tri" | "z" | "letter";
   /** Booklet pages. Saddle requires a multiple of 4 (4, 8, 12, …). */
   pages?: number;
-  /** Mixed saddle: color pages (whole signatures). */
+  /** Mixed pack: color pages (cover wrap or custom). Saddle: whole signatures. */
   colorPages?: number;
-  /** Mixed saddle: B&W pages (whole signatures). */
+  /** Mixed pack: B&W pages. Saddle: whole signatures. */
   bwPages?: number;
-  /** Mixed flats: color piece qty. */
+  /** Mixed flats only: color piece qty. Never used for booklets. */
   colorQty?: number;
-  /** Mixed flats: B&W piece qty. */
+  /** Mixed flats only: B&W piece qty. Never used for booklets. */
   bwQty?: number;
+  /** Mixed pack: cover wrap vs typed page split. */
+  mixedSplit?: "cover" | "custom";
   substrate?: "paper" | "vinyl" | "garment" | "envelope" | "uv";
   scannedOriginal?: boolean;
 };
@@ -101,7 +103,7 @@ export type ProductionPlan = {
   recommended: NestResult;
   alternatives: NestResult[];
   press: RouteStep;
-  /** Mixed color: Versant line + Accurio line. */
+  /** Mixed flats only: Versant color qty + Accurio B&W qty. Booklets do not split presses. */
   lines?: PressLine[];
   finishing: RouteStep[];
   alsoConsider: RouteStep[];

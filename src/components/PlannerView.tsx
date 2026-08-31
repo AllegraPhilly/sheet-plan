@@ -16,8 +16,22 @@ import {
   type SavedJob,
 } from "@/lib/planner/saved-jobs";
 import { commitNumberField, parseNumberDraft } from "@/lib/planner/num-field";
-import { FINISH_PRESETS, matchFinishPreset, presetById } from "@/lib/planner/finish-sizes";
-import { applyMixedDefaults, autoDescription, defaultTicket, todayISO } from "@/lib/planner/ticket-text";
+import { applyFinishPreset, FINISH_PRESETS, matchFinishPreset, presetById } from "@/lib/planner/finish-sizes";
+import {
+  applyCoverSplit,
+  applyMixedDefaults,
+  autoDescription,
+  defaultTicket,
+  isMixedFlatBind,
+  isMixedPackBind,
+  setMixedBwPages,
+  setMixedBwQty,
+  setMixedColorPages,
+  setMixedColorQty,
+  setMixedTotal,
+  setPackPageCount,
+  todayISO,
+} from "@/lib/planner/ticket-text";
 import type { ColorPath, JobInput, ProductionPlan } from "@/lib/planner/types";
 import type { GlossaryKey } from "@/lib/glossary";
 
@@ -173,7 +187,7 @@ export function PlannerView() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
+    <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
       <div className="grid gap-4">
         <form
           className="ticket p-3 sm:p-4"
@@ -187,7 +201,7 @@ export function PlannerView() {
             revealPlanPane();
           }}
         >
-          <h2 className="ticket-head text-3xl">JOB TICKET</h2>
+          <h2 className="ticket-head">JOB TICKET</h2>
           <p className="mb-4 text-sm opacity-70">
             Phone-first. Fields write the job line. Save stays on this phone — no login, not a quote.
           </p>
@@ -205,7 +219,7 @@ export function PlannerView() {
               placeholder="Walk-up"
             />
           </label>
-          <label className="mb-3 block text-sm font-semibold">
+          <label className="mb-3 block min-w-0 overflow-hidden text-sm font-semibold">
             Job date
             <input
               type="date"
@@ -215,20 +229,37 @@ export function PlannerView() {
             />
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Num label="Qty" value={job.qty} min={1} onChange={(n) => patch("qty", n)} />
-            <label className="text-sm font-semibold">
+          <div className="grid min-w-0 grid-cols-2 gap-3">
+            <Num
+              label="Qty"
+              value={job.qty}
+              min={1}
+              onChange={(n) => {
+                if (job.color === "mixed" && isMixedFlatBind(job.bind)) {
+                  setTouched(true);
+                  setNotice(null);
+                  setJob((j) => {
+                    const next = setMixedTotal(j, n);
+                    if (!descDirtyRef.current) next.description = autoDescription(next);
+                    return next;
+                  });
+                  return;
+                }
+                patch("qty", n);
+              }}
+            />
+            <label className="min-w-0 text-sm font-semibold">
               <TermLabel term="size">Size</TermLabel>
               <select
                 className={fieldClass}
-                value={matchFinishPreset(job.finishW, job.finishH)}
+                value={matchFinishPreset(job.finishW, job.finishH, job)}
                 onChange={(e) => {
                   const preset = presetById(e.target.value);
                   if (!preset?.w || !preset.h) return;
                   setTouched(true);
                   setNotice(null);
                   setJob((j) => {
-                    const next = { ...j, finishW: preset.w!, finishH: preset.h! };
+                    const next = applyFinishPreset(j, preset);
                     if (!descDirtyRef.current) next.description = autoDescription(next);
                     return next;
                   });
@@ -255,7 +286,7 @@ export function PlannerView() {
               step={0.125}
               onChange={(n) => patch("finishH", n)}
             />
-            <label className="text-sm font-semibold">
+            <label className="min-w-0 text-sm font-semibold">
               <TermLabel term="mixed">Color</TermLabel>
               <select
                 className={fieldClass}
@@ -277,7 +308,7 @@ export function PlannerView() {
                 <option value="mixed">Mixed</option>
               </select>
             </label>
-            <label className="text-sm font-semibold">
+            <label className="min-w-0 text-sm font-semibold">
               Sides
               <select
                 className={fieldClass}
@@ -288,7 +319,7 @@ export function PlannerView() {
                 <option value={2}>2-sided</option>
               </select>
             </label>
-            <label className="text-sm font-semibold">
+            <label className="min-w-0 text-sm font-semibold">
               <TermLabel term="substrate">Substrate</TermLabel>
               <select
                 className={fieldClass}
@@ -302,7 +333,7 @@ export function PlannerView() {
                 <option value="uv">UV / specialty</option>
               </select>
             </label>
-            <label className="text-sm font-semibold">
+            <label className="min-w-0 text-sm font-semibold">
               Fold
               <select
                 className={fieldClass}
@@ -316,7 +347,7 @@ export function PlannerView() {
                 <option value="z">Z</option>
               </select>
             </label>
-            <label className="text-sm font-semibold">
+            <label className="min-w-0 text-sm font-semibold">
               Bind / pack
               <select
                 className={fieldClass}
@@ -331,15 +362,19 @@ export function PlannerView() {
                       next.sides = 2;
                       next.fold = "half";
                       if (!next.pages || next.pages < 4) next.pages = 8;
-                      if (next.color === "mixed") next = applyMixedDefaults(next);
                     }
+                    if (bind === "staple" || bind === "side-staple") {
+                      next.fold = "none";
+                    }
+                    if (next.color === "mixed") next = applyMixedDefaults(next);
                     if (!descDirtyRef.current) next.description = autoDescription(next);
                     return next;
                   });
                 }}
               >
                 <option value="none">None</option>
-                <option value="staple">Stitch</option>
+                <option value="staple">Corner staple</option>
+                <option value="side-staple">Side staple</option>
                 <option value="saddle">Saddle booklet</option>
                 <option value="coil">Coil</option>
                 <option value="drill">Drill</option>
@@ -347,7 +382,7 @@ export function PlannerView() {
                 <option value="shrink">Shrink</option>
               </select>
             </label>
-            {job.bind === "saddle" && (
+            {(job.bind === "saddle" || (job.color === "mixed" && isMixedPackBind(job.bind))) && (
               <Num
                 label="Pages"
                 term="saddle"
@@ -358,32 +393,57 @@ export function PlannerView() {
                   setTouched(true);
                   setNotice(null);
                   setJob((j) => {
-                    const next: JobInput = { ...j, pages: n };
-                    if (j.color === "mixed") {
-                      const colorPages = Math.min(j.colorPages ?? 4, n);
-                      next.colorPages = colorPages;
-                      next.bwPages = Math.max(0, n - colorPages);
-                    }
+                    const next = setPackPageCount(j, n);
                     if (!descDirtyRef.current) next.description = autoDescription(next);
                     return next;
                   });
                 }}
               />
             )}
-            {job.color === "mixed" && job.bind === "saddle" && (
+            {job.color === "mixed" && isMixedPackBind(job.bind) && (
+              <label className="min-w-0 text-sm font-semibold sm:col-span-2">
+                <TermLabel term="mixed">Mixed split</TermLabel>
+                <select
+                  className={fieldClass}
+                  value={job.mixedSplit ?? "cover"}
+                  onChange={(e) => {
+                    const mixedSplit = e.target.value as "cover" | "custom";
+                    setTouched(true);
+                    setNotice(null);
+                    setJob((j) => {
+                      const next =
+                        mixedSplit === "cover"
+                          ? applyCoverSplit({ ...j, mixedSplit })
+                          : setMixedColorPages({ ...j, mixedSplit: "custom" }, j.colorPages ?? 4);
+                      if (!descDirtyRef.current) next.description = autoDescription(next);
+                      return next;
+                    });
+                  }}
+                >
+                  <option value="cover">Cover color, insides B&W</option>
+                  <option value="custom">Custom page split</option>
+                </select>
+                {(job.mixedSplit ?? "cover") === "cover" && (
+                  <span className="mt-1 block text-xs font-normal opacity-70">
+                    Cover is 4 color pages, remaining pages B&W. Whole book prints on Versant 4100.
+                    Qty is books, not a color/B&W sheet split.
+                  </span>
+                )}
+              </label>
+            )}
+            {job.color === "mixed" && isMixedPackBind(job.bind) && job.mixedSplit === "custom" && (
               <>
                 <Num
                   label="Color pages"
                   term="mixed"
                   value={job.colorPages ?? 4}
                   min={0}
-                  step={4}
+                  step={job.bind === "saddle" ? 4 : 1}
                   onChange={(n) => {
                     setTouched(true);
                     setNotice(null);
                     setJob((j) => {
-                      const pages = j.pages ?? 8;
-                      const next: JobInput = { ...j, colorPages: n, bwPages: Math.max(0, pages - n) };
+                      const next = setMixedColorPages(j, n);
                       if (!descDirtyRef.current) next.description = autoDescription(next);
                       return next;
                     });
@@ -394,13 +454,12 @@ export function PlannerView() {
                   term="mixed"
                   value={job.bwPages ?? 0}
                   min={0}
-                  step={4}
+                  step={job.bind === "saddle" ? 4 : 1}
                   onChange={(n) => {
                     setTouched(true);
                     setNotice(null);
                     setJob((j) => {
-                      const pages = j.pages ?? 8;
-                      const next: JobInput = { ...j, bwPages: n, colorPages: Math.max(0, pages - n) };
+                      const next = setMixedBwPages(j, n);
                       if (!descDirtyRef.current) next.description = autoDescription(next);
                       return next;
                     });
@@ -408,35 +467,29 @@ export function PlannerView() {
                 />
               </>
             )}
-            {job.color === "mixed" && job.bind !== "saddle" && (
+            {job.color === "mixed" && isMixedFlatBind(job.bind) && (
               <>
-                <Num
+                <MixedQty
                   label="Color qty"
-                  term="mixed"
                   value={job.colorQty ?? job.qty}
-                  min={0}
                   onChange={(n) => {
                     setTouched(true);
                     setNotice(null);
                     setJob((j) => {
-                      const bw = j.bwQty ?? 0;
-                      const next: JobInput = { ...j, colorQty: n, qty: n + bw };
+                      const next = setMixedColorQty(j, n);
                       if (!descDirtyRef.current) next.description = autoDescription(next);
                       return next;
                     });
                   }}
                 />
-                <Num
+                <MixedQty
                   label="B&W qty"
-                  term="mixed"
-                  value={job.bwQty ?? 0}
-                  min={0}
+                  value={job.bwQty ?? Math.max(0, job.qty - (job.colorQty ?? job.qty))}
                   onChange={(n) => {
                     setTouched(true);
                     setNotice(null);
                     setJob((j) => {
-                      const color = j.colorQty ?? 0;
-                      const next: JobInput = { ...j, bwQty: n, qty: color + n };
+                      const next = setMixedBwQty(j, n);
                       if (!descDirtyRef.current) next.description = autoDescription(next);
                       return next;
                     });
@@ -492,7 +545,7 @@ export function PlannerView() {
         </form>
 
         <section className="ticket p-3 sm:p-4" aria-label="Saved jobs on this phone">
-          <h2 className="ticket-head text-3xl">SAVED JOBS</h2>
+          <h2 className="ticket-head">SAVED JOBS</h2>
           <p className="mb-3 text-sm opacity-70">This browser only. Clearing site data drops the list.</p>
           {saved.length === 0 ? (
             <p className="text-sm opacity-70">No tickets on this phone yet.</p>
@@ -548,6 +601,50 @@ export function PlannerView() {
   );
 }
 
+/** Live remainder field — onChange fires on every keystroke, including a cleared box (0). */
+function MixedQty({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? (Number.isFinite(value) ? String(value) : "");
+
+  useEffect(() => {
+    if (draft === null) return;
+    const parsed = parseNumberDraft(draft);
+    if (parsed !== value && !(parsed === null && value === 0)) setDraft(null);
+  }, [value, draft]);
+
+  return (
+    <label className="min-w-0 text-sm font-semibold">
+      <TermLabel term="mixed">{label}</TermLabel>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        step={1}
+        className={fieldClass}
+        value={shown}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setDraft(raw);
+          const parsed = parseNumberDraft(raw);
+          onChange(parsed === null ? 0 : parsed);
+        }}
+        onBlur={() => {
+          onChange(commitNumberField(draft ?? shown, { min: 0, fallback: value }));
+          setDraft(null);
+        }}
+      />
+    </label>
+  );
+}
+
 function Num({
   label,
   value,
@@ -573,7 +670,7 @@ function Num({
   }
 
   return (
-    <label className="text-sm font-semibold">
+    <label className="min-w-0 text-sm font-semibold">
       {term ? <TermLabel term={term}>{label}</TermLabel> : label}
       <input
         type="number"
@@ -622,7 +719,7 @@ function PlanCard({
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-        <h2 className="ticket-head text-3xl">PLAN</h2>
+        <h2 className="ticket-head">PLAN</h2>
         <span className="quiet-note">Not a quote</span>
       </div>
       {(who || jobDate) && (
@@ -697,7 +794,7 @@ function PlanCard({
         />
       )}
 
-      <h3 className="ticket-head mt-6 text-2xl">Why</h3>
+      <h3 className="ticket-head mt-6">Why</h3>
       <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
         {why.length === 0 ? (
           <li>Plan built from the ticket fields.</li>
@@ -708,7 +805,7 @@ function PlanCard({
 
       {finishing.length > 0 && (
         <>
-          <h3 className="ticket-head mt-6 text-2xl">Finishing</h3>
+          <h3 className="ticket-head mt-6">Finishing</h3>
           <ul className="mt-2 space-y-1 text-sm">
             {finishing.map((s) => (
               <li key={s.machineId}>
@@ -721,7 +818,7 @@ function PlanCard({
 
       {also.length > 0 && (
         <>
-          <h3 className="ticket-head mt-6 text-2xl">Also consider</h3>
+          <h3 className="ticket-head mt-6">Also consider</h3>
           <ul className="mt-2 space-y-1 text-sm opacity-80">
             {also.map((s) => (
               <li key={s.machineId}>
@@ -734,7 +831,7 @@ function PlanCard({
 
       {alts.length > 0 && r && (
         <>
-          <h3 className="ticket-head mt-6 text-2xl">Other parents (buy score)</h3>
+          <h3 className="ticket-head mt-6">Other parents (buy score)</h3>
           <div className="overflow-x-auto">
             <table className="mt-2 w-full text-left text-sm">
               <thead>

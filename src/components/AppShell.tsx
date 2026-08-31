@@ -17,24 +17,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative min-h-screen">
       <header className="bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 pb-3 pt-5">
-          <div className="flex min-w-0 items-center gap-3">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 pb-2 pt-4">
+          <div className="flex min-w-0 items-center gap-2">
             <img
               src={publicUrl("/brand/allegra-a.svg")}
               alt=""
-              width={56}
-              height={48}
+              width={36}
+              height={32}
               className="brand-mark"
             />
-            <div className="min-w-0">
-              <h1 className="text-[1.65rem] font-bold leading-none tracking-tight text-[var(--purple)] sm:text-3xl">
-                Sheet Plan
-              </h1>
-              <p className="mt-1 text-xs text-[var(--ink)]/55 sm:text-sm">Allegra Philadelphia</p>
-            </div>
+            <h1 className="min-w-0 text-xl font-bold leading-none text-[var(--purple)] sm:text-2xl">
+              Sheet Plan
+            </h1>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className="internal-pill hand">INTERNAL</span>
+            <span className="quiet-note">INTERNAL</span>
             <GlossaryTip term="internal" align="end" />
           </div>
         </div>
