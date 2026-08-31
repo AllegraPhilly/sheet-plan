@@ -53,8 +53,14 @@ describe("Allegra 2026 shop-floor identity", () => {
     expect(header).toMatch(/brand\/allegra-a/);
     expect(header).toMatch(/Sheet Plan/);
     expect(header).toMatch(/Wide \(trial\)/);
-    expect(header).toMatch(/function navActive/);
+    expect(header).toMatch(/navActive/);
     expect(header).toMatch(/\/floor\/wide\//);
+    expect(header).toMatch(/short:\s*"Mail"/);
+    expect(header).toMatch(/short:\s*"Floor"/);
+    expect(header).toMatch(/short:\s*"Wide"/);
+    expect(header).toMatch(/nav-label-short/);
+    expect(header).toMatch(/nav-label-full/);
+    expect(header).toMatch(/site-nav/);
     expect(header).toMatch(/bg-\[var\(--purple\)\]/);
     expect(header).not.toMatch(/Allegra Philadelphia/);
     expect(header).not.toMatch(/MARKETING/);
@@ -66,6 +72,9 @@ describe("Allegra 2026 shop-floor identity", () => {
     expect(layout).not.toMatch(/watermark/);
     expect(css).toMatch(/\.nav-tab-active/);
     expect(css).toMatch(/\.nav-tab-active::after[\s\S]*?var\(--gold\)/);
+    expect(css).toMatch(/\.site-nav\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
+    expect(css).toMatch(/\.nav-label-short/);
+    expect(css).toMatch(/\.nav-label-full/);
     expect(css).toMatch(/\.brand-chip/);
     expect(css).toMatch(/\.brand-mark\s*\{[\s\S]*?height:\s*2\.5rem/);
     expect(css).toMatch(/border-left:\s*4px solid var\(--purple\)/);
@@ -101,14 +110,22 @@ describe("Allegra 2026 shop-floor identity", () => {
 
   it("contains native date and form fields so they cannot overflow the ticket", () => {
     const css = src("app/globals.css");
+    const planner = src("components/PlannerView.tsx");
     const fieldBlock = css.match(/\.field\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
+    const dateBlock = css.match(/input\[type="date"\]\.field\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
     expect(fieldBlock).toMatch(/width:\s*100%/);
     expect(fieldBlock).toMatch(/box-sizing:\s*border-box/);
     expect(fieldBlock).toMatch(/min-width:\s*0/);
     expect(css).toMatch(/\.ticket label[\s\S]*?min-width:\s*0/);
-    expect(src("components/PlannerView.tsx")).toMatch(
-      /overflow-hidden[\s\S]*?Job date[\s\S]*?type="date"/,
-    );
+    expect(dateBlock).toMatch(/box-sizing:\s*border-box/);
+    expect(dateBlock).toMatch(/min-width:\s*0/);
+    expect(dateBlock).toMatch(/border-radius:\s*8px/);
+    expect(dateBlock).toMatch(/-webkit-appearance:\s*none/);
+    expect(dateBlock).not.toMatch(/overflow:\s*hidden/);
+    expect(planner).toMatch(/Job date[\s\S]*?type="date"/);
+    expect(planner).toMatch(/min-w-0[\s\S]*?Job date[\s\S]*?type="date"/);
+    expect(planner).not.toMatch(/overflow-hidden[\s\S]*?Job date[\s\S]*?type="date"/);
+    expect(planner).not.toMatch(/type="text"[\s\S]*?jobDate|jobDate[\s\S]*?type="text"/);
   });
 
   it("keeps one Cut count heading on the chosen plan, never on the alternate layout", () => {
