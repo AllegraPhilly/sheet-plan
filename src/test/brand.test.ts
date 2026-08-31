@@ -71,13 +71,15 @@ describe("Allegra 2026 shop-floor identity", () => {
     expect(css).toMatch(/border-left:\s*4px solid var\(--purple\)/);
   });
 
-  it("keeps INTERNAL as a quiet Roboto label and independently owned copy", () => {
+  it("keeps INTERNAL as a quiet Roboto label and no independently-owned footnote", () => {
     const shell = src("components/AppShell.tsx");
     expect(shell).toMatch(/INTERNAL/);
     expect(shell).toMatch(/quiet-note/);
+    expect(shell).toMatch(/INTERNAL staff tool/);
     expect(shell).not.toMatch(/internal-pill/);
     expect(shell).not.toMatch(/\bhand\b/);
-    expect(shell).toMatch(/Allegra is independently owned and operated/);
+    expect(shell).not.toMatch(/independently owned and operated/i);
+    expect(shell).not.toMatch(/Independently owned and operated/);
     expect(shell.toLowerCase()).not.toContain("wordmark.svg");
     expect(shell.toLowerCase()).not.toContain("logo.svg");
     expect(src("app/layout.tsx")).not.toMatch(/Caveat/);

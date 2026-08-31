@@ -75,8 +75,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className="brand-lockup"
           />
         </div>
-        <p className="mb-1">Allegra is independently owned and operated</p>
-        <p>Staff tool. Noindex. Notice 123 cells effective 2026-07-12.</p>
+        <p>INTERNAL staff tool. Noindex. Notice 123 cells effective 2026-07-12.</p>
       </footer>
     </div>
   );
