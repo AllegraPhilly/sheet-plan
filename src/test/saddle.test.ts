@@ -1,14 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { layoutFromNest } from "@/lib/planner/sheet-layout";
 import { parseJobText } from "@/lib/planner/parse-job";
-import {
-  MIXED_SADDLE_BIND_LINE,
-  mixedSaddleParentBuy,
-  mixedSaddleShopCopy,
-  planFromDescription,
-  planFromJob,
-  safePlanFromJob,
-} from "@/lib/planner/plan";
+import { planFromDescription, planFromJob, safePlanFromJob } from "@/lib/planner/plan";
 import { SADDLE_PAGES_ERROR, nestSaddle } from "@/lib/planner/saddle";
 import { autoDescription } from "@/lib/planner/ticket-text";
 import type { JobInput } from "@/lib/planner/types";
@@ -261,10 +254,10 @@ describe("any-size saddle — 2×2", () => {
 });
 
 describe("mixed color saddle", () => {
-  it("20-page mixed defaults 4 color cover / 16 B&W on two presses", () => {
+  it("20-page mixed is one Versant nest for the whole book — Accurio stays off the ticket", () => {
     const plan = planFromJob(
       saddleJob({
-        description: "585 mixed 5×7 20-page saddle (4 color cover / 16 B&W)",
+        description: "585 mixed 5×7 20-page saddle (color cover / B&W insides)",
         qty: 585,
         finishW: 5,
         finishH: 7,
@@ -272,32 +265,34 @@ describe("mixed color saddle", () => {
         color: "mixed",
         colorPages: 4,
         bwPages: 16,
+        mixedSplit: "cover",
       }),
     );
-    expect(plan.lines).toHaveLength(2);
-    expect(plan.lines![0]).toMatchObject({ role: "color", press: { machineId: "versant-4100" } });
-    expect(plan.lines![1]).toMatchObject({ role: "bw", press: { machineId: "accurio-6120" } });
-    expect(plan.lines![0].nest.saddle).toBe(true);
+    expect(plan.press.machineId).toBe("versant-4100");
+    expect(plan.press.action).toMatch(/whole book on Versant 4100/i);
+    expect(plan.lines).toBeUndefined();
+    expect(plan.recommended.saddle).toBe(true);
+    expect(plan.recommended.sheetsToBuy).toBe(nestSaddle(plan.job).sheetsToBuy);
+    expect(plan.recommended.sheetsToBuy).toBeGreaterThan(0);
     expect(plan.finishing.map((s) => s.machineId)).toContain("graphic-whizard-creasemaster-plus-ts");
+    expect(plan.finishing.map((s) => s.machineId)).toContain("baumfolder-714");
     expect(plan.finishing.map((s) => s.machineId)).toContain("salco-rapid-106e");
+    expect(plan.finishing.map((s) => s.machineId)).not.toContain("accurio-6120");
     expect(autoDescription(plan.job)).toMatch(/color cover \/ B&W insides/);
-    const shop = mixedSaddleShopCopy(plan.job, plan.lines);
-    expect(shop.cover).toBe(`Versant 4100 — color, 4 pages, ${plan.lines![0].nest.sheetsToBuy} sheets`);
-    expect(shop.insides).toBe(`Accurio 6120 — B&W, 16 pages, ${plan.lines![1].nest.sheetsToBuy} sheets`);
-    expect(shop.bind).toBe(MIXED_SADDLE_BIND_LINE);
-    expect(mixedSaddleParentBuy(plan.lines!)).toMatch(/Gather off-press/);
-    const why = plan.why.join(" ");
-    expect(why).toContain(`Cover: ${shop.cover}`);
-    expect(why).toContain(`Insides: ${shop.insides}`);
-    expect(why).toContain(`Bind: ${shop.bind}`);
-    expect(why).not.toMatch(/in-line/i);
-    expect(why).not.toMatch(/Gather color and B&W signatures/);
-    expect(why).not.toMatch(/load Versant covers into the Konica to collate/i);
-    const finish = plan.finishing.map((s) => s.action).join(" ");
-    expect(finish).toMatch(/off-press/);
-    expect(finish).toMatch(/Accurio (does not make the booklet|has no booklet maker)/);
-    expect(finish).toMatch(/do not load Versant covers into the Konica/);
-    expect(finish).not.toMatch(/in-line/i);
+    const ticket = [
+      plan.press.machineId,
+      plan.press.action,
+      ...plan.why,
+      ...plan.finishing.map((s) => `${s.machineId} ${s.action}`),
+    ].join(" ");
+    expect(ticket).not.toMatch(/accurio/i);
+    expect(ticket).not.toMatch(/Konica/i);
+    expect(ticket).not.toMatch(/two stacks/i);
+    expect(ticket).not.toMatch(/gather off-press/i);
+    expect(ticket).not.toMatch(/in-line/i);
+    expect(plan.why.join(" ")).toMatch(/Print the whole book on Versant 4100/);
+    expect(plan.why.join(" ")).toMatch(/one press, not a split/);
+    expect(plan.finishing.find((s) => s.machineId === "salco-rapid-106e")?.action).toMatch(/saddle stitch/i);
   });
 
   it("mixed pages that do not sum are a hard error", () => {

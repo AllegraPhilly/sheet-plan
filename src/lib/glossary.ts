@@ -48,7 +48,7 @@ export const GLOSSARY = {
   },
   mixed: {
     label: "mixed",
-    def: "Part color, part B&W. Flats: Qty is the total; color qty fills B&W as you type. Booklets and stapled/coil packs: cover color + B&W insides (not a qty split). Saddle custom splits stay ÷4. Mixed saddle bind is off-press — Accurio has no booklet maker.",
+    def: "Part color, part B&W. Flats: Qty is the total; color qty fills B&W as you type (two stacks: Versant + Accurio). Booklets and stapled/coil packs: cover color + B&W insides describes the job; PLAN prints the whole book on Versant 4100. Saddle custom splits stay ÷4. Bind is off-press (Whizard / Baum / Salco).",
   },
   size: {
     label: "size",

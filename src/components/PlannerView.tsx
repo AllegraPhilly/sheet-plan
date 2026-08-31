@@ -6,12 +6,7 @@ import { SheetLayoutSvg } from "@/components/SheetLayoutSvg";
 import { inspectFileInBrowser } from "@/lib/inspect/browser-inspect";
 import { inferFinishFromMedia, type InspectedFile } from "@/lib/inspect/file-inspect";
 import { nestKey } from "@/lib/planner/nest";
-import {
-  isMixedSaddlePlan,
-  mixedSaddleParentBuy,
-  mixedSaddleShopCopy,
-  safePlanFromJob,
-} from "@/lib/planner/plan";
+import { safePlanFromJob } from "@/lib/planner/plan";
 import {
   deleteSavedJob,
   loadSavedJobs,
@@ -430,8 +425,8 @@ export function PlannerView() {
                 </select>
                 {(job.mixedSplit ?? "cover") === "cover" && (
                   <span className="mt-1 block text-xs font-normal opacity-70">
-                    Cover is 4 pages on Versant 4100. Remaining pages B&W on Accurio 6120. Qty is
-                    books, not a color/B&W sheet split.
+                    Cover is 4 color pages, remaining pages B&W. Whole book prints on Versant 4100.
+                    Qty is books, not a color/B&W sheet split.
                   </span>
                 )}
               </label>
@@ -721,8 +716,6 @@ function PlanCard({
   }, [recommendedKey, plan.job.finishW, plan.job.finishH, plan.job.qty]);
 
   const shown = parents.find((n) => nestKey(n) === layoutKey) ?? r;
-  const mixedSaddle = isMixedSaddlePlan(plan.job, plan.lines);
-  const mixedShop = mixedSaddle ? mixedSaddleShopCopy(plan.job, plan.lines) : null;
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
@@ -736,13 +729,7 @@ function PlanCard({
         </p>
       )}
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
-        {mixedShop ? (
-          <>
-            <Row k="Cover" v={mixedShop.cover} />
-            <Row k="Insides" v={mixedShop.insides} />
-            <Row k="Bind" v={mixedShop.bind} />
-          </>
-        ) : (plan.lines?.length ?? 0) > 1 ? (
+        {(plan.lines?.length ?? 0) > 1 ? (
           plan.lines!.map((line) => (
             <Row
               key={line.role}
@@ -757,13 +744,11 @@ function PlanCard({
           k="Parent to buy"
           term="parent"
           v={
-            mixedSaddle && plan.lines
-              ? mixedSaddleParentBuy(plan.lines)
-              : r?.parent
-                ? r.saddle
-                  ? `${r.parent.label} · ${r.sheetsToBuy} sheets · saddle signature ${r.signature ? `${r.signature.w}×${r.signature.h}` : ""} (${r.nUp}-up, 4 pages/sheet)`
-                  : `${r.parent.label} · ${r.sheetsToBuy} sheets · ${r.nUp}-up`
-                : "No parent nest for this ticket."
+            r?.parent
+              ? r.saddle
+                ? `${r.parent.label} · ${r.sheetsToBuy} sheets · saddle signature ${r.signature ? `${r.signature.w}×${r.signature.h}` : ""} (${r.nUp}-up, 4 pages/sheet)`
+                : `${r.parent.label} · ${r.sheetsToBuy} sheets · ${r.nUp}-up`
+              : "No parent nest for this ticket."
           }
         />
         <Row

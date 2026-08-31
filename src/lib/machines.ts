@@ -66,7 +66,7 @@ export const MACHINES: Machine[] = [
     maxParentIn: { w: 13, h: 19.2 },
     notes: [
       "B&W production path.",
-      "No booklet maker. Mixed booklets gather off-press — do not load Versant covers into the Konica.",
+      "No booklet maker. Mixed booklets print on the Versant 4100, not this press.",
     ],
     floorFacts: ["B&W", "Sheet-fed production", "No booklet maker"],
   },

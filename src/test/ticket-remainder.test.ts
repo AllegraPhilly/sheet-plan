@@ -134,21 +134,20 @@ describe("B) mixed packs — cover/insides, never a qty split", () => {
     expect(qtys.color).toBe(500 * 2);
     expect(qtys.bw).toBe(500 * 8);
     const plan = planFromJob(coil);
-    expect(plan.lines).toHaveLength(2);
-    expect(plan.lines![0].press.machineId).toBe("versant-4100");
-    expect(plan.lines![1].press.machineId).toBe("accurio-6120");
+    expect(plan.press.machineId).toBe("versant-4100");
+    expect(plan.press.action).toMatch(/whole book on Versant 4100/i);
+    expect(plan.lines).toBeUndefined();
     expect(plan.why.join(" ")).toMatch(/500 books/);
-    expect(plan.why.join(" ")).toMatch(/Cover: Versant 4100 — color, 4 pages/);
-    expect(plan.why.join(" ")).toMatch(/Insides: Accurio 6120 — B&W, 16 pages/);
-    expect(plan.why.join(" ")).toMatch(/gather off-press\. Accurio does not make the booklet/);
+    expect(plan.why.join(" ")).toMatch(/Print the whole book on Versant 4100/);
+    expect(plan.why.join(" ")).not.toMatch(/accurio/i);
+    expect(plan.why.join(" ")).not.toMatch(/gather off-press/i);
   });
 
   it("ticket markup hides Color qty on pack binds and shows cover split", () => {
     const ui = readFileSync(new URL("../components/PlannerView.tsx", import.meta.url), "utf8");
     expect(ui).toMatch(/Cover color, insides B&W/);
-    expect(ui).toMatch(/k="Cover"/);
-    expect(ui).toMatch(/k="Insides"/);
-    expect(ui).toMatch(/k="Bind"/);
+    expect(ui).toMatch(/Whole book prints on Versant 4100/);
+    expect(ui).not.toMatch(/Remaining pages B&W on Accurio/);
     expect(ui).toMatch(/isMixedFlatBind\(job\.bind\)/);
     expect(ui).toMatch(/function MixedQty/);
     expect(ui).toMatch(/onChange\(parsed === null \? 0 : parsed\)/);

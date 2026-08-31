@@ -11,11 +11,12 @@ describe("floor catalog", () => {
     expect(confidentMachines()).toHaveLength(CONFIDENT_IDS.length);
   });
 
-  it("Accurio 6120 has no booklet maker — mixed booklets gather off-press", () => {
+  it("Accurio 6120 has no booklet maker — mixed booklets print on the Versant", () => {
     const acc = machineById("accurio-6120")!;
     expect(acc.notes.join(" ")).toMatch(/no booklet maker/i);
-    expect(acc.notes.join(" ")).toMatch(/gather off-press/i);
-    expect(acc.notes.join(" ")).toMatch(/do not load Versant covers into the Konica/i);
+    expect(acc.notes.join(" ")).toMatch(/Mixed booklets print on the Versant 4100/i);
+    expect(acc.notes.join(" ")).not.toMatch(/gather off-press/i);
+    expect(acc.notes.join(" ")).not.toMatch(/load Versant covers into the Konica/i);
     expect(acc.floorFacts?.join(" ")).toMatch(/no booklet maker/i);
   });
 

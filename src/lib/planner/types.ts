@@ -103,7 +103,7 @@ export type ProductionPlan = {
   recommended: NestResult;
   alternatives: NestResult[];
   press: RouteStep;
-  /** Mixed color: Versant line + Accurio line. */
+  /** Mixed flats only: Versant color qty + Accurio B&W qty. Booklets do not split presses. */
   lines?: PressLine[];
   finishing: RouteStep[];
   alsoConsider: RouteStep[];

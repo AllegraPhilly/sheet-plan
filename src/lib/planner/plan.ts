@@ -7,7 +7,6 @@ import {
   isSaddleJob,
   mixedSaddleError,
   nestSaddle,
-  nestSaddleForPages,
   saddleAlternatives,
   saddlePageError,
   sheetsPerSaddleBooklet,
@@ -90,27 +89,11 @@ export function finishingSteps(job: JobInput, recommended: NestResult): RouteSte
         mustStep("challenge-305-crt", "Split ganged signatures on the parent. Not a letter 2-up cut."),
       );
     }
-    if (job.color === "mixed") {
-      out.push(
-        mustStep(
-          "graphic-whizard-creasemaster-plus-ts",
-          "Crease cover off-press (Whizard CreaseMaster Plus-TS). Accurio has no booklet maker — do not load Versant covers into the Konica.",
-        ),
-      );
-      out.push(mustStep("baumfolder-714", "Fold off-press (Baum 714). Gather the two stacks first."));
-      out.push(
-        mustStep(
-          "salco-rapid-106e",
-          "Stitch off-press (Salco Rapid 106E). Accurio does not make the booklet.",
-        ),
-      );
-    } else {
-      if (isCoverStock(job)) {
-        out.push(mustStep("graphic-whizard-creasemaster-plus-ts", "Crease cover stock before fold."));
-      }
-      out.push(mustStep("baumfolder-714", "Fold: half (saddle signature)."));
-      out.push(mustStep("salco-rapid-106e", "Saddle stitch on the fold."));
+    if (job.color === "mixed" || isCoverStock(job)) {
+      out.push(mustStep("graphic-whizard-creasemaster-plus-ts", "Crease cover stock before fold."));
     }
+    out.push(mustStep("baumfolder-714", "Fold: half (saddle signature)."));
+    out.push(mustStep("salco-rapid-106e", "Saddle stitch on the fold."));
     if (job.scannedOriginal) {
       out.unshift(mustStep("epson-expression-11000xl", "Scan original (tabloid flatbed)."));
     }
@@ -180,73 +163,34 @@ function paperNest(job: JobInput): NestResult {
   return rankParents(job)[0] ?? fallbackNest(job);
 }
 
-/** Shop-floor bind line for mixed saddle. Accurio has no booklet maker. */
-export const MIXED_SADDLE_BIND_LINE =
-  "gather off-press. Accurio does not make the booklet. Whizard crease, Baum 714 fold, Salco Rapid 106E stitch.";
-
-/** Cover / insides / bind copy for a mixed saddle ticket. */
-export function mixedSaddleShopCopy(
-  job: JobInput,
-  lines?: PressLine[],
-): { cover: string; insides: string; bind: string } {
-  const colorPages = job.colorPages ?? 4;
-  const bwPages = job.bwPages ?? Math.max(0, (job.pages ?? 0) - colorPages);
-  const coverSheets = lines?.find((l) => l.role === "color")?.nest.sheetsToBuy ?? 0;
-  const insideSheets = lines?.find((l) => l.role === "bw")?.nest.sheetsToBuy ?? 0;
-  return {
-    cover: `Versant 4100 — color, ${colorPages} pages, ${coverSheets} sheets`,
-    insides: `Accurio 6120 — B&W, ${bwPages} pages, ${insideSheets} sheets`,
-    bind: MIXED_SADDLE_BIND_LINE,
-  };
+/** Mixed booklet / pack: one Versant line for the whole book. Accurio does not run this ticket. */
+export function mixedBookletPress(): RouteStep {
+  return mustStep(
+    "versant-4100",
+    "Print the whole book on Versant 4100 (covers and insides). One press.",
+  );
 }
 
-export function isMixedSaddlePlan(job: JobInput, lines?: PressLine[]): boolean {
-  return job.color === "mixed" && job.bind === "saddle" && (lines?.length ?? 0) > 1;
-}
-
-/** Two stacks to buy — do not show cover nest only as the parent buy. */
-export function mixedSaddleParentBuy(lines: PressLine[]): string {
-  const color = lines.find((l) => l.role === "color");
-  const bw = lines.find((l) => l.role === "bw");
-  if (!color || !bw) return "Gather cover and insides off-press.";
-  return `Cover ${color.nest.parent.label} · ${color.nest.sheetsToBuy} sheets; insides ${bw.nest.parent.label} · ${bw.nest.sheetsToBuy} sheets. Gather off-press.`;
-}
-
-function saddleWhy(job: JobInput, recommended: NestResult, press: RouteStep, lines?: PressLine[]): string[] {
+function saddleWhy(job: JobInput, recommended: NestResult, press: RouteStep): string[] {
   const pages = job.pages!;
   const sigsEach = sheetsPerSaddleBooklet(pages);
   const why: string[] = [];
   const sig = recommended.signature;
   const sigLabel = sig ? `${sig.w}×${sig.h}` : "signature";
-  if (isMixedSaddlePlan(job, lines)) {
-    const copy = mixedSaddleShopCopy(job, lines);
-    why.push(`Cover: ${copy.cover}`);
-    why.push(`Insides: ${copy.insides}`);
-    why.push(`Bind: ${copy.bind}`);
+  why.push(
+    `Buy ${recommended.sheetsToBuy} parent ${recommended.parent.label} (${pages} pages ÷ 4 = ${sigsEach} signatures each × ${job.qty} booklets). ${sigLabel} signature, ${recommended.nUp}-up on the parent. Folded signature, not 8.5×11 2-up cut on the Challenge.`,
+  );
+  if (job.color === "mixed") {
     why.push(
-      `${sigLabel} signature, ${recommended.nUp}-up on the parent. Folded signature, not 8.5×11 2-up cut on the Challenge.`,
+      "Job is mixed (color cover / B&W insides). Print the whole book on Versant 4100 — one press, not a split.",
     );
-  } else {
-    why.push(
-      `Buy ${recommended.sheetsToBuy} parent ${recommended.parent.label} (${pages} pages ÷ 4 = ${sigsEach} signatures each × ${job.qty} booklets). ${sigLabel} signature, ${recommended.nUp}-up on the parent. Folded signature, not 8.5×11 2-up cut on the Challenge.`,
-    );
-    if (lines && lines.length > 1) {
-      for (const line of lines) {
-        const who = line.role === "color" ? "Color" : "B&W";
-        why.push(
-          `${who}: ${line.nest.impressions} duplex clicks on ${line.press.name} (${line.nest.sheetsToBuy} ${line.nest.parent.label}).`,
-        );
-      }
-      why.push("Gather color and B&W signatures, crease cover, fold half on Baumfolder 714, saddle stitch on Salco Rapid 106E.");
-    } else {
-      why.push(
-        `${recommended.impressions} duplex clicks on ${press.name} (one signature sheet = 4 pages).`,
-      );
-      why.push("Fold half on Baumfolder 714. Saddle stitch on Salco Rapid 106E.");
-    }
-    if (isCoverStock(job)) {
-      why.push("Cover stock — crease on Graphic Whizard before fold.");
-    }
+  }
+  why.push(
+    `${recommended.impressions} duplex clicks on ${press.name} (one signature sheet = 4 pages).`,
+  );
+  why.push("Fold half on Baumfolder 714. Saddle stitch on Salco Rapid 106E.");
+  if (job.color === "mixed" || isCoverStock(job)) {
+    why.push("Cover stock — crease on Graphic Whizard before fold.");
   }
   why.push(recommended.cuts.why);
   return why;
@@ -303,50 +247,21 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
   let lines: PressLine[] | undefined;
 
   if (isSaddleJob(job) && job.substrate === "paper") {
+    recommended = nestSaddle(job);
+    alternatives = saddleAlternatives(job, recommended);
     if (job.color === "mixed") {
-      const colorPages = job.colorPages ?? 0;
-      const bwPages = job.bwPages ?? 0;
-      const built: PressLine[] = [];
-      if (colorPages > 0) {
-        const nest = nestSaddleForPages({ ...job, color: "color", pages: colorPages }, colorPages);
-        built.push({ role: "color", press: pressForPath("color"), nest });
-      }
-      if (bwPages > 0) {
-        const nest = nestSaddleForPages({ ...job, color: "bw", pages: bwPages }, bwPages);
-        built.push({ role: "bw", press: pressForPath("bw"), nest });
-      }
-      if (built.length === 0) throw new Error(saddlePageError(job.pages) ?? "Saddle mixed job has no pages.");
-      lines = built;
-      recommended = built[0].nest;
-      press = built[0].press;
-      alternatives = saddleAlternatives({ ...job, color: built[0].role, pages: built[0].role === "color" ? colorPages : bwPages }, recommended);
+      press = mixedBookletPress();
     } else {
-      recommended = nestSaddle(job);
-      alternatives = saddleAlternatives(job, recommended);
       const chosen = choosePress({ ...job, color: job.color === "bw" ? "bw" : "color" });
       press = chosen.press;
       also = chosen.also;
     }
   } else if (job.color === "mixed" && job.substrate === "paper" && isMixedPackBind(job.bind)) {
     const qtys = mixedPackSheetQtys(job);
-    const built: PressLine[] = [];
-    if (qtys.color > 0) {
-      const nest = paperNest({ ...job, qty: qtys.color, color: "color" });
-      built.push({ role: "color", press: pressForPath("color"), nest });
-    }
-    if (qtys.bw > 0) {
-      const nest = paperNest({ ...job, qty: qtys.bw, color: "bw" });
-      built.push({ role: "bw", press: pressForPath("bw"), nest });
-    }
-    if (built.length === 0) {
-      recommended = paperNest(job);
-      press = pressForPath("color");
-    } else {
-      lines = built;
-      recommended = built[0].nest;
-      press = built[0].press;
-      alternatives = rankParents({ ...job, qty: qtys.color || qtys.bw, color: "color" }).slice(1);
-    }
+    const total = Math.max(1, qtys.color + qtys.bw);
+    recommended = paperNest({ ...job, qty: total, color: "color" });
+    press = mixedBookletPress();
+    alternatives = rankParents({ ...job, qty: total, color: "color" }).slice(1);
   } else if (job.color === "mixed" && job.substrate === "paper") {
     const qtys = mixedFlatQtys(job);
     const built: PressLine[] = [];
@@ -380,17 +295,14 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
 
   const why: string[] = [];
   if (isSaddleJob(job) && job.substrate === "paper") {
-    why.push(...saddleWhy(job, recommended, press, lines));
+    why.push(...saddleWhy(job, recommended, press));
   } else if (job.substrate === "paper") {
+    if (job.color === "mixed" && isMixedPackBind(job.bind)) {
+      why.push(
+        `${job.qty} books/sets. Job is mixed (color cover / B&W insides). Print the whole book on Versant 4100 — one press, not a split.`,
+      );
+    }
     if (lines && lines.length > 1) {
-      if (isMixedPackBind(job.bind)) {
-        const pages = job.pages ?? 8;
-        const colorPages = job.colorPages ?? Math.min(4, pages);
-        const bwPages = job.bwPages ?? Math.max(0, pages - colorPages);
-        why.push(
-          `${job.qty} books/sets. Cover: Versant 4100 — color, ${colorPages} pages. Insides: Accurio 6120 — B&W, ${bwPages} pages. Bind: gather off-press. Accurio does not make the booklet.`,
-        );
-      }
       for (const line of lines) {
         const who = line.role === "color" ? "Color" : "B&W";
         why.push(
