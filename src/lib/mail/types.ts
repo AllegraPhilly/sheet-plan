@@ -21,7 +21,7 @@ export type MailInput = {
   heightIn: number;
   thicknessIn: number;
   weightOz: number;
-  fold: "none" | "half" | "tri" | "letter" | "self-mailer";
+  fold: "none" | "half" | "tri" | "letter" | "quarter" | "self-mailer";
   nonprofit: boolean;
   goal: Goal;
   content: ContentClass;
@@ -101,11 +101,21 @@ export type MailAdvice = {
     no_confirmed_inserter: true;
     one_meter: true;
     no_select_plus: true;
+    no_imsb: true;
+    postal_wizard_locked: true;
   };
   selfMailer: {
     tabbedRequired: boolean;
     note: string;
+    fsmOk?: boolean;
+    tabIn?: number;
   };
+  eddmIndicia: {
+    lines: readonly string[];
+    typeSpec: string;
+    clearIn: number;
+    simplifiedAddress: string;
+  } | null;
   profit_flag?: never;
   notice: {
     name: "Notice 123";

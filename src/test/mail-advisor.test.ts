@@ -298,6 +298,8 @@ describe("Mail Advisor GAPS", () => {
     expect(advice.shop.permit_not_open).toBe(true);
     expect(advice.shop.no_select_plus).toBe(true);
     expect(advice.shop.no_confirmed_inserter).toBe(true);
+    expect(advice.shop.no_imsb).toBe(true);
+    expect(advice.shop.postal_wizard_locked).toBe(true);
     expect(advice.induction.meterMachineId).toBe("pitney-bowes-connect-plus-2000");
   });
 
@@ -320,6 +322,12 @@ describe("Mail Advisor GAPS", () => {
     expect(notes).not.toMatch(/CRID\s*#?\s*\d{3,}/);
     expect(JSON.stringify(advice)).not.toMatch(/fiery/i);
     expect(advice.decisions.some((d) => d.id === "eddm-retail-do")).toBe(true);
+    expect(notes).toMatch(/Straps \(TP-202\)/);
+    expect(notes).toMatch(/not rubber bands/);
+    expect(advice.eddmIndicia?.lines).toEqual(["PRSRT STD", "ECRWSS", "U.S. POSTAGE PAID", "EDDM RETAIL"]);
+    expect(advice.eddmIndicia?.simplifiedAddress).toBe("LOCAL POSTAL CUSTOMER");
+    expect(advice.eddmIndicia?.typeSpec).toMatch(/4 pt ALL CAPS/);
+    expect(JSON.stringify(advice.eddmIndicia)).not.toMatch(/\b\d{2}-\d{3,}/);
   });
 
   it("11×17 parent is flagged; envelopes skip tabs; booklets are not W360 default", () => {
@@ -334,14 +342,68 @@ describe("Mail Advisor GAPS", () => {
 
     const book = adviseMail(base({ piece: "booklet" }));
     expect(book.selfMailer.note).toMatch(/201\.3\.16/);
+    expect(book.selfMailer.note).toMatch(/bound-spine/);
+    expect(book.selfMailer.note).toMatch(/bi-fold/);
     expect(book.induction.mailingAssignedTo).not.toContain("pitney-bowes-w360");
+    expect(book.decisions.find((d) => d.id === "booklet-201-3-16")?.say).toMatch(/not a folded self-mailer/i);
   });
 
-  it("never assigns MAILBOT and never quotes FCM as 2–3 days", () => {
+  it("never assigns MAILBOT and never quotes FCM as 2–3 or 2021 1–3 days", () => {
     const advice = adviseMail(base({ piece: "eddm-flat", addressing: "occupant-eddm", widthIn: 12, heightIn: 9 }));
     expect(mailingAssignees(advice)).not.toContain("mailbot");
     expect(JSON.stringify(advice).toLowerCase()).not.toMatch(/mailbot/);
     expect(advice.speed.fcm).toMatch(/1–5/);
     expect(advice.speed.fcm).not.toMatch(/2–3/);
+    expect(JSON.stringify(advice)).not.toMatch(/1–3/);
+    expect(JSON.stringify(advice)).not.toMatch(/1-3 days/);
+  });
+
+  it("DMM 201 FSM letters: 6×10.5 / 3 oz, 1\" tabs (1.5\" >1 oz), two placements, quarter-fold tabs only", () => {
+    const ok = adviseMail(
+      base({
+        piece: "self-mailer",
+        fold: "half",
+        widthIn: 8.5,
+        heightIn: 11,
+        weightOz: 1,
+      }),
+    );
+    const fsm = ok.decisions.find((d) => d.id === "fsm-tabs");
+    expect(ok.selfMailer.fsmOk).toBe(true);
+    expect(ok.selfMailer.tabIn).toBe(1);
+    expect(fsm?.kind).toBe("do");
+    expect(fsm?.say).toMatch(/below or to the right/i);
+    expect(fsm?.why).toMatch(/two on top within 1/);
+    expect(fsm?.why).toMatch(/70# book/);
+    expect(fsm?.why).toMatch(/postalpro\.usps\.com\/node\/2711/);
+    expect(fsm?.shop).toMatch(/1\.5/);
+    expect(ok.selfMailer.note).not.toMatch(/final fold on the bottom/i);
+
+    const heavy = adviseMail(base({ piece: "self-mailer", fold: "half", widthIn: 8.5, heightIn: 11, weightOz: 1.2 }));
+    expect(heavy.selfMailer.tabIn).toBe(1.5);
+    expect(heavy.decisions.find((d) => d.id === "fsm-tabs")?.say).toMatch(/1\.5/);
+
+    const tooTall = adviseMail(
+      base({ piece: "self-mailer", fold: "none", widthIn: 10.5, heightIn: 6.125, weightOz: 1 }),
+    );
+    expect(tooTall.selfMailer.fsmOk).toBe(false);
+    expect(tooTall.decisions.find((d) => d.id === "fsm-tabs")?.kind).toBe("hold");
+    expect(tooTall.decisions.find((d) => d.id === "fsm-tabs")?.say).toMatch(/6" H/);
+
+    const quarter = adviseMail(
+      base({ piece: "self-mailer", fold: "quarter", widthIn: 8.5, heightIn: 11, weightOz: 0.8 }),
+    );
+    expect(quarter.decisions.find((d) => d.id === "fsm-tabs")?.say).toMatch(/tabs only/i);
+  });
+
+  it("does not offer IMsb for client mail; Postal Wizard stays locked", () => {
+    const advice = adviseMail(base({ qty: 500, content: "advertising" }));
+    const line = advice.decisions.find((d) => d.id === "no-imsb-postal-wizard");
+    expect(line?.kind).toBe("hold");
+    expect(line?.say).toMatch(/Do not offer IMsb/);
+    expect(line?.say).toMatch(/Postal Wizard/);
+    expect(line?.say).toMatch(/locked/);
+    expect(advice.onceEligible.find((c) => c.id === "fcm-comm-auto-5d")?.notes.join(" ")).toMatch(/IMsb/);
+    expect(advice.onceEligible.find((c) => c.id === "fcm-comm-auto-5d")?.shop_blockers).toContain("permit_not_open");
   });
 });

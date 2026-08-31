@@ -88,7 +88,7 @@ export const GLOSSARY = {
   },
   tabbed: {
     label: "tabbed self-mailer",
-    def: "Folded piece held with tabs so it can meter without an envelope.",
+    def: "Folded piece held with nonperforated tabs so it can meter without an envelope. FSM max 6×10.5 in / 3 oz — smaller than an enveloped letter. Not a booklet.",
   },
   notice123: {
     label: "Notice 123",

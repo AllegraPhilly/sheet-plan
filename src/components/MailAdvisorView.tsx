@@ -142,6 +142,7 @@ export function MailAdvisorView() {
               <option value="half">Half</option>
               <option value="tri">Tri</option>
               <option value="letter">Letter</option>
+              <option value="quarter">Quarter</option>
               <option value="self-mailer">Self-mailer</option>
             </select>
           </label>
@@ -196,6 +197,25 @@ export function MailAdvisorView() {
               <DecisionCard key={d.id} line={d} />
             ))}
           </ol>
+
+          {advice.eddmIndicia && (
+            <div className="rule mt-4 pb-3">
+              <h3 className="ticket-head text-2xl">EDDM-Retail indicia mock</h3>
+              <p className="mt-1 text-xs opacity-70">
+                {advice.eddmIndicia.typeSpec}, {advice.eddmIndicia.clearIn}&quot; clear. No permit number.
+              </p>
+              <p className="mono mt-2 text-sm leading-5">
+                {advice.eddmIndicia.lines.map((ln) => (
+                  <span key={ln} className="block">
+                    {ln}
+                  </span>
+                ))}
+              </p>
+              <p className="mt-2 text-sm">
+                Simplified address: <strong>{advice.eddmIndicia.simplifiedAddress}</strong>
+              </p>
+            </div>
+          )}
 
           <h3 className="ticket-head mt-6 text-2xl">Actionable now</h3>
           <CellTable cells={advice.actionable} empty="No hardcoded actionable cell for this piece." />
@@ -259,7 +279,8 @@ export function MailAdvisorView() {
           </p>
           <p className="mt-1 text-sm">
             One meter: Pitney Bowes Connect+ 2000. Do not plan a second Select+. No confirmed addresser (no_addresser).
-            No confirmed inserter. MAILBOT is email only — never assigned mailing.
+            No confirmed inserter. Do not offer IMsb for client mail. Postal Wizard stays locked until permit/CRID is
+            open. MAILBOT is email only — never assigned mailing.
           </p>
           <p className="mt-3 text-xs opacity-60">
             <TermLabel term="notice123">{advice.notice.name}</TermLabel> effective {advice.notice.effective}.{" "}

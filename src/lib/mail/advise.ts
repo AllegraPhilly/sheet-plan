@@ -1,9 +1,11 @@
-import { FEES, FCM, EDDM_RETAIL, MM, MM_MIN_QTY, fcmLetterMeter, fcmLetterStamp } from "./rates";
+import { FEES, FCM, EDDM_RETAIL, EDDM_RETAIL_INDICIA, MM, MM_MIN_QTY, fcmLetterMeter, fcmLetterStamp } from "./rates";
 import {
   classifyUspsShape,
   eddmFlatShape,
   finishedDims,
   fcmFlatShape,
+  fsmLetterOk,
+  fsmTabInches,
   isLetterSelfMailer,
   letterSized,
   looksLikeParentSheet,
@@ -13,7 +15,6 @@ import {
   wantsEddm,
   EDDM_FLAT_GATE,
   FSM_LETTER,
-  sides,
 } from "./shape";
 import {
   DEST_SCF,
@@ -160,7 +161,7 @@ function buildDecisions(input: MailInput, ctx: {
       kind: "do",
       say: "EDDM-Retail is open now at $0.260 per piece through 3.3 oz. No annual fee. No permit imprint.",
       why: "Notice 123 p.6. A CRID is still required even when imprint is not open (DMM 144.1.2) — we do not display a CRID number. Form 3587. DMM 146: drop only at the office the EDDM tool names.",
-      shop: "Meter on Connect+ 2000 or pay cash/card at that PO. Bundle 50–100, facing slip, band TP-202. Neighborhood POs do not take permit/bulk. Commercial EDDM p.19 stays locked — do not chase 0.1¢ vs Retail.",
+      shop: "Meter on Connect+ 2000 or pay cash/card at that PO. Bundle 50–100 with a facing slip. Straps (TP-202), not rubber bands (July 2025). Neighborhood POs do not take permit/bulk. Commercial EDDM p.19 stays locked — do not chase 0.1¢ vs Retail.",
     });
   }
 
@@ -198,14 +199,20 @@ function buildDecisions(input: MailInput, ctx: {
     });
   }
 
-  const foldedSelf = input.piece === "self-mailer" || input.fold === "self-mailer" || input.fold === "half" || input.fold === "tri" || input.fold === "letter";
+  const foldedSelf =
+    input.piece === "self-mailer" ||
+    input.fold === "self-mailer" ||
+    input.fold === "half" ||
+    input.fold === "tri" ||
+    input.fold === "letter" ||
+    input.fold === "quarter";
   if (input.piece === "booklet" || /\bbooklet/.test(`${input.description ?? ""}`)) {
     lines.push({
       id: "booklet-201-3-16",
       kind: "hold",
-      say: "Booklets are not the W360 default tab path.",
+      say: "A booklet is a bound-spine piece, not a folded self-mailer. Do not send it to the W360 as a bi-fold.",
       why: "DMM 201.3.16 (booklets), not 201.3.14 folded self-mailer letters.",
-      shop: "Do not plan W360 tabs as the booklet finish. Confirm the booklet construction before quoting a tab count.",
+      shop: "W360 + Baum 714 is the FSM letter path only. Confirm spine/bind before any tab talk.",
     });
   } else if (input.piece === "envelope") {
     lines.push({
@@ -216,16 +223,19 @@ function buildDecisions(input: MailInput, ctx: {
       shop: "Print the envelope. Meter FCM on Connect+ 2000. Do not assign an inserter or a second meter.",
     });
   } else if (foldedSelf && ctx.letterSelfMailer) {
-    const { L } = sides(ctx.finished.widthIn, ctx.finished.heightIn);
-    const over = L > FSM_LETTER.maxL || input.weightOz > FSM_LETTER.maxOz;
+    const over = !fsmLetterOk(ctx.finished.widthIn, ctx.finished.heightIn, input.weightOz);
+    const tabIn = fsmTabInches(input.weightOz);
+    const quarter = input.fold === "quarter";
     lines.push({
       id: "fsm-tabs",
       kind: over ? "hold" : "do",
       say: over
-        ? "This folded self-mailer exceeds DMM 201.3.14 (max length 10.5\" or max 3 oz). Do not treat it as a tabbed letter."
-        : "Folded self-mailer letter: two nonperforated tabs on the top edge, final fold on the bottom.",
-      why: "DMM 201.3.14 (folded self-mailer letters). Tabs 201.3.11 — no perfs.",
-      shop: "Whizard score → Baum 714 fold → PB W360 tab. Default bi/tri-fold, final fold on the bottom. Envelopes skip this path.",
+        ? `This folded self-mailer exceeds DMM 201.3.14 (max ${FSM_LETTER.maxH}\" H × ${FSM_LETTER.maxL}\" L, max ${FSM_LETTER.maxOz} oz — smaller than an enveloped letter). Do not treat it as a W360 letter.`
+        : quarter
+          ? `Quarter-fold FSM: tabs only. Use ${tabIn}\" nonperforated tabs.`
+          : `Folded self-mailer letter: ${tabIn}\" nonperforated tabs. Final fold below or to the right of the address.`,
+      why: `DMM 201.3.14 (FSM letters). Tabs 201.3.11 — no perfs. Two legal placements: two on top within 1\" of lead/trail, OR two on lead/trail within 1\" of top. Paper ${FSM_LETTER.paperLe1oz} ≤1 oz / ${FSM_LETTER.paperGt1oz} >1 oz. 2–12 panels. Cheat-sheet: ${FSM_LETTER.cheatSheet}`,
+      shop: `Whizard score → Baum 714 fold → PB W360 tab. ${tabIn}\" tabs (${FSM_LETTER.tabIn}\" ≤1 oz, ${FSM_LETTER.tabInOver1oz}\" if over 1 oz). Quarter-fold is tabs only. Booklets are not this path.`,
     });
   }
 
@@ -235,6 +245,14 @@ function buildDecisions(input: MailInput, ctx: {
     say: "Commercial Marketing Mail and First-Class presort are not open. No CRID or imprint is on file. Do not guess open.",
     why: "Locked cells: Notice 123 p.13 FCM commercial (min 500); p.17–20 MM letters/flats including nonprofit. Open now: p.6 FCM meter/stamp/postcard/flats/EDDM-Retail/nonmach surcharge.",
     shop: "Show locked cells with shop_blockers: permit_not_open. Email-only bots are never assigned a USPS drop.",
+  });
+
+  lines.push({
+    id: "no-imsb-postal-wizard",
+    kind: "hold",
+    say: "Do not offer IMsb as the shop path for client mail. Postal Wizard is the first commercial e-statement path once permit/CRID is open — still locked.",
+    why: "IMsb is not for MSPs mailing for others. Permit/CRID remains closed.",
+    shop: "Meter FCM or run EDDM-Retail now. Do not start IMsb for a client's mailing. Do not guess Postal Wizard open.",
   });
 
   lines.push({
@@ -314,7 +332,8 @@ export function adviseMail(input: MailInput): MailAdvice {
           "Form 3587. A CRID is required even if imprint is not open (DMM 144.1.2) — number not displayed.",
           "Meter Connect+ 2000 or cash/card at the PO the EDDM tool names (DMM 146).",
           "Qty 200+ or 50 lb; max 5,000/day per 5-digit ZIP (143.2.5, 145.1.2).",
-          "Bundles 50–100, facing slip, band TP-202. Neighborhood POs do not take permit/bulk.",
+          "Bundles 50–100 with facing slip. Straps (TP-202), not rubber bands (July 2025). Neighborhood POs do not take permit/bulk.",
+          `Indicia mock (4 pt ALL CAPS, 1/8\" clear): ${EDDM_RETAIL_INDICIA.lines.join(" / ")}. Address: ${EDDM_RETAIL_INDICIA.simplifiedAddress}.`,
           "No names. No forwarding/return.",
           zipCap ? `Qty ${input.qty} exceeds 5,000/day per 5-digit ZIP — split days or ZIPs only as the EDDM tool allows.` : "",
         ].filter(Boolean),
@@ -445,7 +464,10 @@ export function adviseMail(input: MailInput): MailAdvice {
         eligibleNow: false,
         onceEligible: true,
         shop_blockers: PERMIT_BLOCK,
-        notes: ["qty ≥ 500. Permit/CRID commercial FCM is NOT OPEN."],
+        notes: [
+          "qty ≥ 500. Permit/CRID commercial FCM is NOT OPEN.",
+          "Postal Wizard is the first commercial e-statement path once open — still locked. Do not offer IMsb for client mail.",
+        ],
       }),
     );
   }
@@ -644,7 +666,7 @@ export function adviseMail(input: MailInput): MailAdvice {
     fees,
     missing,
     speed: {
-      fcm: "First-Class Mail: typically 1–5 days. Never quote a two-to-three-day window.",
+      fcm: "First-Class Mail: typically 1–5 days. Never quote a two-to-three-day window. Do not use the 2021 service standard.",
       mm: "USPS Marketing Mail: no guaranteed delivery day (DMM 243.3.1.1).",
       eddm: "EDDM: no guaranteed delivery day (DMM 143.2.1).",
     },
@@ -661,17 +683,29 @@ export function adviseMail(input: MailInput): MailAdvice {
       no_confirmed_inserter: true,
       one_meter: true,
       no_select_plus: true,
+      no_imsb: true,
+      postal_wizard_locked: true,
     },
     selfMailer: {
       tabbedRequired,
+      fsmOk: tabbedRequired ? fsmLetterOk(finished.widthIn, finished.heightIn, input.weightOz) : undefined,
+      tabIn: tabbedRequired ? fsmTabInches(input.weightOz) : undefined,
       note: booklet
-        ? "Booklets follow DMM 201.3.16 — not the W360 default tab path."
+        ? "Booklets are bound-spine pieces (DMM 201.3.16), not the FSM default. Do not send booklets to W360 as a bi-fold."
         : input.piece === "envelope"
           ? "Envelopes skip tabs. No confirmed inserter in this shop."
           : tabbedRequired
-            ? "Tabbed self-mailer is actionable now as metered FCM. DMM 201.3.14 max L 10.5 in / 3 oz; tabs 201.3.11 no perfs. Shop: Whizard → Baum 714 → W360. Default bi/tri-fold, final fold on the bottom, two nonperforated tabs on top."
+            ? `Tabbed self-mailer is actionable now as metered FCM when it meets DMM 201.3.14: max ${FSM_LETTER.maxH}\" H × ${FSM_LETTER.maxL}\" L, max ${FSM_LETTER.maxOz} oz (smaller than an enveloped letter). Tabs ${fsmTabInches(input.weightOz)}\" nonperforated (1\" ≤1 oz / 1.5\" >1 oz); two legal placements (top near lead/trail, or lead/trail near top). Final fold below or to the right of the address. Quarter-fold: tabs only. Shop: Whizard → Baum 714 → W360. Cheat-sheet ${FSM_LETTER.cheatSheet}.`
             : "Open-edge self-mailers need tabs before they are machinable letters.",
     },
+    eddmIndicia: eddmRetailOk
+      ? {
+          lines: EDDM_RETAIL_INDICIA.lines,
+          typeSpec: EDDM_RETAIL_INDICIA.typeSpec,
+          clearIn: EDDM_RETAIL_INDICIA.clearIn,
+          simplifiedAddress: EDDM_RETAIL_INDICIA.simplifiedAddress,
+        }
+      : null,
     notice: NOTICE,
   };
 

@@ -16,10 +16,21 @@ export const LETTER_GATE = {
   maxOz: 3.5,
 } as const;
 
-/** Folded self-mailer letter (DMM 201.3.14) — tighter than a generic letter. */
+/**
+ * Folded self-mailer letter (DMM 201.3.14) — smaller than an enveloped letter.
+ * Max 6" H × 10.5" L, max 3 oz. Tabs 201.3.11.
+ */
 export const FSM_LETTER = {
   maxL: 10.5,
+  maxH: 6,
   maxOz: 3,
+  minPanels: 2,
+  maxPanels: 12,
+  paperLe1oz: "70# book",
+  paperGt1oz: "80#",
+  tabIn: 1,
+  tabInOver1oz: 1.5,
+  cheatSheet: "https://postalpro.usps.com/node/2711",
 } as const;
 
 /** Retail card / postcard. Notice 123 p.6. */
@@ -62,6 +73,9 @@ export function finishedDims(input: MailInput): { widthIn: number; heightIn: num
   const { L, H } = sides(w, h);
   if (input.fold === "half") {
     return { widthIn: H, heightIn: L / 2, thicknessIn: t * 2 };
+  }
+  if (input.fold === "quarter") {
+    return { widthIn: w / 2, heightIn: h / 2, thicknessIn: t * 4 };
   }
   if (input.fold === "tri" || input.fold === "letter") {
     return { widthIn: H, heightIn: L / 3, thicknessIn: t * 3 };
@@ -111,13 +125,28 @@ export function machinableLetter(widthIn: number, heightIn: number, thicknessIn:
   return letterAspectOk(widthIn, heightIn);
 }
 
+export function fsmTabInches(weightOz: number): number {
+  return weightOz > 1 ? FSM_LETTER.tabInOver1oz : FSM_LETTER.tabIn;
+}
+
+/** FSM letter gate — tighter than an enveloped letter (max H 6, not 6.125). */
+export function fsmLetterOk(
+  widthIn: number,
+  heightIn: number,
+  weightOz: number,
+): boolean {
+  const { L, H } = sides(widthIn, heightIn);
+  return L <= FSM_LETTER.maxL && H <= FSM_LETTER.maxH && weightOz <= FSM_LETTER.maxOz;
+}
+
 export function isLetterSelfMailer(input: MailInput, finished: { widthIn: number; heightIn: number; thicknessIn: number }): boolean {
   const folded =
     input.piece === "self-mailer" ||
     input.fold === "self-mailer" ||
     input.fold === "half" ||
     input.fold === "tri" ||
-    input.fold === "letter";
+    input.fold === "letter" ||
+    input.fold === "quarter";
   if (input.piece === "envelope" || input.piece === "booklet") return false;
   if (!folded && input.piece !== "self-mailer") return false;
   return letterSized(finished.widthIn, finished.heightIn, finished.thicknessIn);

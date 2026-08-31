@@ -26,6 +26,14 @@ export const EDDM_RETAIL = {
   form: "3587",
 } as const;
 
+/** Retail indicia mock — no permit number. 4 pt ALL CAPS, 1/8" clear. */
+export const EDDM_RETAIL_INDICIA = {
+  lines: ["PRSRT STD", "ECRWSS", "U.S. POSTAGE PAID", "EDDM RETAIL"] as const,
+  typeSpec: "4 pt ALL CAPS",
+  clearIn: 0.125,
+  simplifiedAddress: "LOCAL POSTAL CUSTOMER",
+} as const;
+
 /** Marketing Mail minimum. Do not invent a sort under this. */
 export const MM_MIN_QTY = 200;
 
