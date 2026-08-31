@@ -9,7 +9,19 @@ const NAV = [
   { href: "/", label: "Planner" },
   { href: "/mail/", label: "Mail Advisor" },
   { href: "/floor/", label: "Floor list" },
+  { href: "/floor/wide/", label: "Wide (trial)" },
 ];
+
+function navActive(pathname: string, href: string, hrefs: string[]): boolean {
+  if (href === "/") return pathname === "/" || pathname === "";
+  const prefix = href.replace(/\/$/, "");
+  if (!pathname.startsWith(prefix)) return false;
+  return !hrefs.some((other) => {
+    if (other === href) return false;
+    const op = other.replace(/\/$/, "");
+    return op.length > prefix.length && op.startsWith(prefix) && pathname.startsWith(op);
+  });
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -35,12 +47,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <GlossaryTip term="internal" align="end" />
           </div>
         </div>
-        <nav className="mx-auto flex max-w-6xl gap-0.5 px-3 pb-1" aria-label="Primary">
+        <nav className="mx-auto flex max-w-6xl flex-wrap gap-0.5 px-3 pb-1" aria-label="Primary">
           {NAV.map((item) => {
-            const active =
-              item.href === "/"
-                ? pathname === "/" || pathname === ""
-                : pathname.startsWith(item.href.replace(/\/$/, ""));
+            const active = navActive(pathname, item.href, NAV.map((n) => n.href));
             return (
               <Link
                 key={item.href}

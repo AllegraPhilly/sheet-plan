@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { TermLabel } from "@/components/GlossaryTip";
 import { MACHINES } from "@/lib/machines";
 
@@ -6,6 +7,13 @@ export function FloorView() {
   return (
     <div>
       <h2 className="ticket-head">FLOOR LIST</h2>
+      <Link href="/floor/wide/" className="ticket mb-4 mt-3 block p-3 sm:p-4">
+        <p className="quiet-note text-[var(--stamp)]">TRIAL</p>
+        <h3 className="ticket-head leading-none">Wide (trial)</h3>
+        <p className="mt-2 text-sm">
+          Banner grommets and leftover vinyl on a roll. Shop helper, not a quote.
+        </p>
+      </Link>
       <p className="mb-4 text-sm opacity-70">
         Route only <strong>confident</strong> machines. Fuzzy = also-consider. Skip = never route. MAILBOT is email
         only and is listed so nobody assigns it a USPS drop. Planning max{" "}
