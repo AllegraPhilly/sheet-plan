@@ -48,6 +48,8 @@ jobs:
           test -f out/index.html
           test -f out/mail/index.html
           test -f out/staff/mail-advisor/index.html
+          test -f out/floor/index.html
+          test -f out/floor/wide/index.html
           test -f out/CNAME
           test -f out/.nojekyll
           grep -q 'bearcublodge.com' out/CNAME

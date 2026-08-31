@@ -9,6 +9,7 @@ Staff Mail Advisor lives at [`/mail/`](https://AllegraPhilly.github.io/sheet-pla
 - **Intended (before DNS):** https://AllegraPhilly.github.io/sheet-plan/
 - **Mail Advisor:** https://AllegraPhilly.github.io/sheet-plan/mail/
 - **Staff alias:** https://AllegraPhilly.github.io/sheet-plan/staff/mail-advisor/
+- **Wide trial:** https://AllegraPhilly.github.io/sheet-plan/floor/wide/
 - **After DNS:** https://bearcublodge.com (same app; `public/CNAME` is `bearcublodge.com`)
 
 The static site is already on `main` and on the `gh-pages` branch. GitHub Actions builds and publishes it. **Pages itself is still off** — the Actions token cannot flip that switch (API 403). A repo admin must do this once:
@@ -23,7 +24,7 @@ Static GitHub Pages only. No Vercel. No Node server in production. `output: 'exp
 
 ## Nav
 
-Planner · Mail Advisor · Floor list. Quiet INTERNAL label in Roboto. `robots` noindex. Shop-floor colors (purple #522E90, red #EE3E42 for errors / ? marks) and Roboto only — no Caveat on headings or chrome. Header is a small standalone 4-color A plus Roboto “Sheet Plan” — no Allegra Philadelphia subtitle, not the ALLEGRA wordmark, not MARKETING • PRINT • MAIL. Footer: Independently owned and operated. No Trajan. No Fiery IP/hostname. No meter serials or USPS account IDs in the UI.
+Planner · Mail Advisor · Floor list · Wide (trial). Quiet INTERNAL label in Roboto. `robots` noindex. Shop-floor colors (purple #522E90, red #EE3E42 for errors / ? marks) and Roboto only — no Caveat on headings or chrome. Header is a small standalone 4-color A plus Roboto “Sheet Plan” — no Allegra Philadelphia subtitle, not the ALLEGRA wordmark, not MARKETING • PRINT • MAIL. Footer: Independently owned and operated. No Trajan. No Fiery IP/hostname. No meter serials or USPS account IDs in the UI.
 
 ## Develop
 
