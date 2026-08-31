@@ -343,6 +343,7 @@ function Num({
         className="field"
         value={value}
         placeholder={placeholder}
+        onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => onChange(e.target.value)}
       />
     </label>
