@@ -22,7 +22,12 @@ export const FCM = {
 export const EDDM_RETAIL = {
   flatUpTo3_3oz: { amount: 0.26, page: 6 },
   annualFee: { amount: 0, page: null, dmm: "143.1.1" },
+  cridRequiredDmm: "144.1.2",
+  form: "3587",
 } as const;
+
+/** Marketing Mail minimum. Do not invent a sort under this. */
+export const MM_MIN_QTY = 200;
 
 export const MM = {
   letterAuto5digitOrigin: { amount: 0.395, page: 17 },

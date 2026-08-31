@@ -72,11 +72,11 @@ export const GLOSSARY = {
   },
   eddm: {
     label: "EDDM-Retail",
-    def: "Every Door Direct Mail at the retail counter. No permit. Flats to a carrier route.",
+    def: "Every Door Direct Mail at the retail counter. No permit imprint. Flats only. A CRID is required (number not shown).",
   },
   permit: {
     label: "permit / CRID",
-    def: "USPS account to enter commercial MM/FCM. Closed here until confirmed.",
+    def: "USPS account to enter commercial MM/FCM. Closed here until confirmed. No CRID number on file — do not guess open.",
   },
   entry: {
     label: "Origin / DSCF / DDU",

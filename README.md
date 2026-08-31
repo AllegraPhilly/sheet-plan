@@ -35,6 +35,6 @@ npm run build
 
 Notice 123 cells are hardcoded, effective **2026-07-12**. Missing cells say see Notice 123 — rates are never invented.
 
-Permit/CRID commercial Marketing Mail and First-Class presort are **not open**. Those cells show as once-eligible with `shop_blockers: permit_not_open`. Actionable now: metered FCM, EDDM-Retail, tabbed self-mailers.
+Permit/CRID commercial Marketing Mail and First-Class presort are **not open**. No CRID or imprint on file — do not guess open. Those cells show as once-eligible with `shop_blockers: permit_not_open`. Actionable now: metered FCM, EDDM-Retail (flats only; letter-size self-mailer is rejected), tabbed self-mailers. Content test runs before cheap postage. Staff copy is Say this / Why (DMM) / What we do in this shop.
 
 MAILBOT is email only and is never assigned USPS mailing.

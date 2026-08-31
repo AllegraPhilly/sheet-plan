@@ -134,15 +134,19 @@ describe("Mail Advisor acceptance (10)", () => {
     expect(advice.speed.eddm).toMatch(/no guaranteed/);
   });
 
-  it("9. never emit profit_flag; BMEU 7500 Lindbergh Blvd 19176", () => {
+  it("9. never emit profit_flag; BMEU Premier 7500 Lindbergh Blvd 19176", () => {
     const advice = adviseMail(base());
     expect(adviceHasProfitFlag(advice)).toBe(false);
-    expect(advice.induction.bmeu).toEqual({
+    expect(advice.induction.bmeu).toMatchObject({
       name: PHILLY_BMEU.name,
       address: "7500 Lindbergh Blvd",
       city: "Philadelphia, PA",
       zip: "19176",
+      phone: "1-877-672-0007",
     });
+    expect(advice.induction.bmeu.name).toMatch(/Premier/);
+    expect(advice.induction.destScf).toBe("SCF PHILADELPHIA PA 190");
+    expect(advice.induction.destScfZips).toBe("189–192, 194");
     expect(JSON.stringify(advice)).not.toMatch(/profit_flag/);
   });
 
@@ -181,8 +185,163 @@ describe("Notice 123 hardcoded extras", () => {
     expect(advice.onceEligible.find((c) => c.id === "mm-eddm-origin")?.amount).toBe(0.309);
     expect(advice.onceEligible.find((c) => c.id === "mm-eddm-dscf")?.amount).toBe(0.268);
     expect(advice.onceEligible.find((c) => c.id === "mm-eddm-ddu")?.amount).toBe(0.259);
+    expect(advice.onceEligible.find((c) => c.id === "mm-eddm-origin")?.shop_blockers).toContain("permit_not_open");
+    expect(advice.onceEligible.find((c) => c.id === "mm-eddm-origin")?.notes.join(" ")).toMatch(/0\.1/);
     expect(FEES.permitImprint).toEqual({ amount: 390, page: 33 });
     expect(FEES.mmAnnual).toEqual({ amount: 390, page: 33 });
     expect(FEES.fcmPresortAnnual).toEqual({ amount: 390, page: 33 });
+  });
+});
+
+describe("Mail Advisor GAPS", () => {
+  it("rejects a letter-size self-mailer as EDDM and offers redesign", () => {
+    const advice = adviseMail(
+      base({
+        piece: "self-mailer",
+        fold: "tri",
+        widthIn: 8.5,
+        heightIn: 11,
+        addressing: "occupant-eddm",
+        goal: "saturation",
+        content: "advertising",
+        qty: 500,
+      }),
+    );
+    expect(advice.actionable.some((c) => c.id === "eddm-retail-flat")).toBe(false);
+    expect(advice.pieceGate.letterSelfMailer).toBe(true);
+    const reject = advice.decisions.find((d) => d.id === "eddm-letter-self-mailer-reject");
+    expect(reject?.kind).toBe("reject");
+    expect(reject?.say).toMatch(/not EDDM/i);
+    expect(reject?.shop).toMatch(/redesign/i);
+    expect(reject?.shop).toMatch(/letter/i);
+    expect(advice.actionable.some((c) => c.id === "fcm-meter-letter")).toBe(true);
+  });
+
+  it("rejects letter-finished EDDM-flat piece that is not a flat", () => {
+    const advice = adviseMail(
+      base({
+        piece: "eddm-flat",
+        fold: "none",
+        widthIn: 8.5,
+        heightIn: 5.5,
+        thicknessIn: 0.02,
+        addressing: "occupant-eddm",
+        content: "advertising",
+        qty: 400,
+      }),
+    );
+    expect(advice.actionable.some((c) => c.id === "eddm-retail-flat")).toBe(false);
+    expect(advice.decisions.some((d) => d.id === "eddm-letter-self-mailer-reject" || d.id === "eddm-shape-reject")).toBe(
+      true,
+    );
+  });
+
+  it("FCM meter ounce steps 1 / 2 / 3 / 3.5 and does not interpolate 4 oz", () => {
+    expect(adviseMail(base({ weightOz: 1 })).actionable.find((c) => c.id === "fcm-meter-letter")?.amount).toBe(0.78);
+    expect(adviseMail(base({ weightOz: 2 })).actionable.find((c) => c.id === "fcm-meter-letter")?.amount).toBe(1.07);
+    expect(adviseMail(base({ weightOz: 3 })).actionable.find((c) => c.id === "fcm-meter-letter")?.amount).toBe(1.36);
+    expect(adviseMail(base({ weightOz: 3.5 })).actionable.find((c) => c.id === "fcm-meter-letter")?.amount).toBe(1.65);
+    const over = adviseMail(base({ weightOz: 4 }));
+    expect(over.actionable.some((c) => c.id === "fcm-meter-letter")).toBe(false);
+    expect(over.missing.join(" ")).toMatch(/flats prices/);
+    expect(over.missing.join(" ")).toMatch(/Notice 123/);
+  });
+
+  it("retail card 0.65 p.6 max 4.25×6×0.016", () => {
+    const card = adviseMail(
+      base({ piece: "card", widthIn: 6, heightIn: 4.25, thicknessIn: 0.016, weightOz: 0.3 }),
+    );
+    expect(card.actionable.find((c) => c.id === "fcm-postcard")).toMatchObject({ amount: 0.65, page: 6 });
+    const thick = adviseMail(
+      base({ piece: "card", widthIn: 6, heightIn: 4.25, thicknessIn: 0.02, weightOz: 0.3 }),
+    );
+    expect(thick.actionable.some((c) => c.id === "fcm-postcard")).toBe(false);
+  });
+
+  it("retail FCM flat 1 oz is 1.69 p.6", () => {
+    const flat = adviseMail(base({ piece: "flat", widthIn: 9, heightIn: 12, weightOz: 1 }));
+    expect(flat.actionable.find((c) => c.id === "fcm-flat-1oz")).toMatchObject({ amount: 1.69, page: 6 });
+  });
+
+  it("nonmachinable letter surcharge is 0.49 p.6 n.1", () => {
+    expect(FCM.nonmachinable).toEqual({ amount: 0.49, page: 6 });
+    const square = adviseMail(
+      base({ piece: "letter", widthIn: 5, heightIn: 5, thicknessIn: 0.02, weightOz: 1, fold: "none" }),
+    );
+    const sur = square.actionable.find((c) => c.id === "fcm-nonmach-surcharge");
+    expect(sur).toMatchObject({ amount: 0.49, page: 6 });
+    expect(sur?.notes.join(" ")).toMatch(/n\.1/);
+  });
+
+  it("named ads under 200 stay on metered FCM; 200+ MM is locked at the BMEU", () => {
+    const low = adviseMail(base({ qty: 199, addressing: "personalized", content: "advertising" }));
+    expect(low.actionable.some((c) => c.id === "fcm-meter-letter")).toBe(true);
+    expect(low.onceEligible.some((c) => c.className === "MM")).toBe(false);
+    expect(low.decisions.some((d) => d.id === "named-ads-under-200")).toBe(true);
+
+    const high = adviseMail(base({ qty: 200, addressing: "personalized", content: "advertising" }));
+    expect(high.onceEligible.filter((c) => c.className === "MM").every((c) => c.shop_blockers.includes("permit_not_open"))).toBe(
+      true,
+    );
+    expect(high.decisions.some((d) => d.id === "named-ads-200")).toBe(true);
+  });
+
+  it("staff copy is Say this / Why (DMM) / What we do; content first; no_addresser; one meter", () => {
+    const advice = adviseMail(base());
+    expect(advice.decisions[0]?.id).toBe("content-first");
+    for (const d of advice.decisions) {
+      expect(d.say.length).toBeGreaterThan(10);
+      expect(d.why.length).toBeGreaterThan(5);
+      expect(d.shop.length).toBeGreaterThan(5);
+    }
+    expect(advice.shop.no_addresser).toBe(true);
+    expect(advice.shop.permit_not_open).toBe(true);
+    expect(advice.shop.no_select_plus).toBe(true);
+    expect(advice.shop.no_confirmed_inserter).toBe(true);
+    expect(advice.induction.meterMachineId).toBe("pitney-bowes-connect-plus-2000");
+  });
+
+  it("EDDM-Retail notes CRID without a number, Form 3587, and drop rules", () => {
+    const advice = adviseMail(
+      base({
+        piece: "eddm-flat",
+        addressing: "occupant-eddm",
+        widthIn: 9,
+        heightIn: 12,
+        weightOz: 3,
+        content: "advertising",
+      }),
+    );
+    const notes = advice.actionable.find((c) => c.id === "eddm-retail-flat")?.notes.join(" ") ?? "";
+    expect(notes).toMatch(/3587/);
+    expect(notes).toMatch(/144\.1\.2/);
+    expect(notes).toMatch(/CRID/);
+    expect(notes).toMatch(/number not displayed/i);
+    expect(notes).not.toMatch(/CRID\s*#?\s*\d{3,}/);
+    expect(JSON.stringify(advice)).not.toMatch(/fiery/i);
+    expect(advice.decisions.some((d) => d.id === "eddm-retail-do")).toBe(true);
+  });
+
+  it("11×17 parent is flagged; envelopes skip tabs; booklets are not W360 default", () => {
+    const parent = adviseMail(base({ widthIn: 11, heightIn: 17, piece: "letter" }));
+    expect(parent.pieceGate.parentSheet).toBe(true);
+    expect(parent.decisions.some((d) => d.id === "parent-not-usps")).toBe(true);
+
+    const env = adviseMail(base({ piece: "envelope", fold: "none" }));
+    expect(env.selfMailer.tabbedRequired).toBe(false);
+    expect(env.selfMailer.note).toMatch(/skip tabs/i);
+    expect(env.induction.mailingAssignedTo).not.toContain("pitney-bowes-w360");
+
+    const book = adviseMail(base({ piece: "booklet" }));
+    expect(book.selfMailer.note).toMatch(/201\.3\.16/);
+    expect(book.induction.mailingAssignedTo).not.toContain("pitney-bowes-w360");
+  });
+
+  it("never assigns MAILBOT and never quotes FCM as 2–3 days", () => {
+    const advice = adviseMail(base({ piece: "eddm-flat", addressing: "occupant-eddm", widthIn: 12, heightIn: 9 }));
+    expect(mailingAssignees(advice)).not.toContain("mailbot");
+    expect(JSON.stringify(advice).toLowerCase()).not.toMatch(/mailbot/);
+    expect(advice.speed.fcm).toMatch(/1–5/);
+    expect(advice.speed.fcm).not.toMatch(/2–3/);
   });
 });
