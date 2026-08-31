@@ -19,7 +19,6 @@ describe("Allegra 2026 shop-floor identity", () => {
     expect(css).toMatch(/#408eb2/i);
     expect(css).toMatch(/#fcba30/i);
     expect(css).toMatch(/#26a046/i);
-    expect(css).toMatch(/--paper:\s*#fff/i);
     expect(layout).toMatch(/Roboto/);
     expect(layout).not.toMatch(/Caveat/);
     expect(css).not.toMatch(/Caveat/);
@@ -32,38 +31,55 @@ describe("Allegra 2026 shop-floor identity", () => {
     expect(svg).toMatch(/Roboto/);
   });
 
-  it("ships a small standalone A and Sheet Plan only — no franchise lockup", () => {
+  it("ships the official 4-color A in the header and official horizontal lockup in the footer", () => {
     const root = new URL("../../", import.meta.url);
     expect(existsSync(new URL("public/brand/allegra-a.svg", root))).toBe(true);
     expect(existsSync(new URL("public/brand/allegra-a.png", root))).toBe(true);
+    expect(existsSync(new URL("public/brand/allegra-lockup.svg", root))).toBe(true);
+    expect(existsSync(new URL("public/brand/allegra-lockup.png", root))).toBe(true);
     const png = readFileSync(new URL("public/brand/allegra-a.png", root));
     expect(png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(true);
+    const lockupPng = readFileSync(new URL("public/brand/allegra-lockup.png", root));
+    expect(lockupPng.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(true);
+    const lockupSvg = readFileSync(new URL("public/brand/allegra-lockup.svg", root), "utf8");
+    expect(lockupSvg).toMatch(/authorized Alliance Franchise Brands art/);
+    expect(lockupSvg).not.toMatch(/Stone Sans/);
 
     const shell = src("components/AppShell.tsx");
     const layout = src("app/layout.tsx");
     const css = src("app/globals.css");
-    expect(shell).toMatch(/brand\/allegra-a/);
-    expect(shell).toMatch(/Sheet Plan/);
-    expect(shell).not.toMatch(/Allegra Philadelphia/);
-    expect(shell).not.toMatch(/MARKETING/);
-    expect(shell).not.toMatch(/PRINT • MAIL/);
-    expect(shell).not.toMatch(/Stone Sans/);
-    expect(shell).not.toMatch(/ALLEGRA/);
+    const header = shell.slice(0, shell.indexOf("<footer"));
+    const footer = shell.slice(shell.indexOf("<footer"));
+    expect(header).toMatch(/brand\/allegra-a/);
+    expect(header).toMatch(/Sheet Plan/);
+    expect(header).toMatch(/Wide \(trial\)/);
+    expect(header).toMatch(/function navActive/);
+    expect(header).toMatch(/\/floor\/wide\//);
+    expect(header).toMatch(/bg-\[var\(--purple\)\]/);
+    expect(header).not.toMatch(/Allegra Philadelphia/);
+    expect(header).not.toMatch(/MARKETING/);
+    expect(header).not.toMatch(/PRINT • MAIL/);
+    expect(header).not.toMatch(/Stone Sans/);
+    expect(header).not.toMatch(/ALLEGRA/);
+    expect(footer).toMatch(/brand\/allegra-lockup/);
+    expect(footer).not.toMatch(/Stone Sans/);
     expect(layout).not.toMatch(/watermark/);
-    expect(css).toMatch(/\.hairline/);
     expect(css).toMatch(/\.nav-tab-active/);
-    expect(css).not.toMatch(/\.nav-tab-active::after[\s\S]*?var\(--gold\)/);
-    expect(shell).not.toMatch(/bg-\[var\(--purple\)\]/);
+    expect(css).toMatch(/\.nav-tab-active::after[\s\S]*?var\(--gold\)/);
+    expect(css).toMatch(/\.brand-chip/);
+    expect(css).toMatch(/\.brand-mark\s*\{[\s\S]*?height:\s*2\.5rem/);
+    expect(css).toMatch(/border-left:\s*4px solid var\(--purple\)/);
   });
 
-  it("keeps INTERNAL as a quiet Roboto label and independently owned copy", () => {
+  it("keeps INTERNAL as a quiet Roboto label and no independently-owned footnote", () => {
     const shell = src("components/AppShell.tsx");
     expect(shell).toMatch(/INTERNAL/);
     expect(shell).toMatch(/quiet-note/);
+    expect(shell).toMatch(/INTERNAL staff tool/);
     expect(shell).not.toMatch(/internal-pill/);
     expect(shell).not.toMatch(/\bhand\b/);
-    expect(shell).toMatch(/Independently owned and operated/);
-    expect(shell).toMatch(/No franchise wordmark/);
+    expect(shell).not.toMatch(/independently owned and operated/i);
+    expect(shell).not.toMatch(/Independently owned and operated/);
     expect(shell.toLowerCase()).not.toContain("wordmark.svg");
     expect(shell.toLowerCase()).not.toContain("logo.svg");
     expect(src("app/layout.tsx")).not.toMatch(/Caveat/);

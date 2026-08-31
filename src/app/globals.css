@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Shop-floor ticket. Roboto only. No handwriting display type, no franchise lockup, no storefront chrome. */
+/* Shop-floor ticket. Roboto only. Official 4-color A in the header; official horizontal lockup in the footer. */
 :root {
   --purple: #522e90;
   --sky: #408eb2;
@@ -13,9 +13,9 @@
   --berry: #9b268e;
   --navy: #25408e;
   --ink: #2a2040;
-  --paper: #fff;
+  --paper: #f6f4f9;
   --ticket: #ffffff;
-  --line: color-mix(in srgb, #522e90 18%, #e8e8e8);
+  --line: color-mix(in srgb, #522e90 28%, #e8e8e8);
   --rule: #522e90;
   --amber: #fcba30;
   --stamp: #ee3e42;
@@ -54,56 +54,80 @@ h3,
   letter-spacing: 0.04em;
 }
 
+.site-header {
+  color: #fff;
+}
+
+.brand-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.45rem 0.5rem;
+}
+
 .brand-mark {
   display: block;
-  height: 1.75rem;
+  height: 2.5rem;
   width: auto;
 }
 
 @media (min-width: 640px) {
   .brand-mark {
-    height: 2rem;
+    height: 3rem;
   }
 }
 
-.hairline {
-  height: 1px;
-  background: var(--line);
+.brand-lockup-space {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.85rem 0.85rem 0.85rem 0;
+}
+
+.brand-lockup {
+  display: block;
+  width: min(16.5rem, 100%);
+  height: auto;
 }
 
 .nav-tab {
   position: relative;
   display: inline-flex;
   align-items: center;
-  min-height: 2.5rem;
-  padding: 0.35rem 0.6rem;
-  color: color-mix(in srgb, var(--ink) 58%, transparent);
+  min-height: 2.75rem;
+  padding: 0.4rem 0.7rem 0.55rem;
+  color: color-mix(in srgb, #fff 72%, transparent);
   font-weight: 700;
   font-size: 0.95rem;
   text-decoration: none;
 }
 
 .nav-tab:hover {
-  color: var(--purple);
+  color: #fff;
 }
 
 .nav-tab-active {
-  color: var(--purple);
+  color: #fff;
 }
 
 .nav-tab-active::after {
   content: "";
   position: absolute;
-  left: 0.6rem;
-  right: 0.6rem;
-  bottom: 0.28rem;
-  height: 1px;
-  background: var(--purple);
+  left: 0.7rem;
+  right: 0.7rem;
+  bottom: 0.2rem;
+  height: 3px;
+  background: var(--gold);
+  border-radius: 1px;
 }
 
 .ticket {
   background: var(--ticket);
   border: 1px solid var(--line);
+  border-left: 4px solid var(--purple);
   border-radius: 8px;
   box-shadow: none;
   min-width: 0;
@@ -127,6 +151,10 @@ h3,
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.site-header .quiet-note {
+  color: color-mix(in srgb, #fff 70%, transparent);
 }
 
 .field {
@@ -226,6 +254,10 @@ input[type="date"].field {
 .glossary-mark:focus-visible {
   outline: 2px solid var(--purple);
   outline-offset: 2px;
+}
+
+.site-header .glossary-mark:focus-visible {
+  outline-color: var(--gold);
 }
 
 .glossary-tip {

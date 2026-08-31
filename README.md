@@ -24,7 +24,7 @@ Static GitHub Pages only. No Vercel. No Node server in production. `output: 'exp
 
 ## Nav
 
-Planner · Mail Advisor · Floor list · Wide (trial). Quiet INTERNAL label in Roboto. `robots` noindex. Shop-floor colors (purple #522E90, red #EE3E42 for errors / ? marks) and Roboto only — no Caveat on headings or chrome. Header is a small standalone 4-color A plus Roboto “Sheet Plan” — no Allegra Philadelphia subtitle, not the ALLEGRA wordmark, not MARKETING • PRINT • MAIL. Footer: Independently owned and operated. No Trajan. No Fiery IP/hostname. No meter serials or USPS account IDs in the UI.
+Planner · Mail Advisor · Floor list · Wide (trial). Quiet INTERNAL label in Roboto. `robots` noindex. Shop-floor colors (purple #522E90, red #EE3E42 for errors / ? marks) and Roboto only — no Caveat on headings or chrome. Header is a small standalone 4-color A plus Roboto “Sheet Plan” — no Allegra Philadelphia subtitle, not the ALLEGRA wordmark, not MARKETING • PRINT • MAIL. Footer: official 4-color horizontal lockup plus a quiet INTERNAL staff-tool note. No Trajan. No Fiery IP/hostname. No meter serials or USPS account IDs in the UI.
 
 ## Develop
 
