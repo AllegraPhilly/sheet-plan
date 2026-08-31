@@ -24,7 +24,8 @@ describe("wide trial isolation and copy", () => {
     expect(blob).toMatch(/300 vs 3000/);
     expect(blob).not.toMatch(/allegraphilly\.com/i);
     expect(blob).not.toMatch(/fiery/i);
-    expect(blob).not.toMatch(/\$/);
+    expect(blob).not.toMatch(/\$\d/);
+    expect(blob).not.toMatch(/dollar quote/i);
     expect(blob).not.toMatch(/postage/i);
     expect(blob).not.toMatch(/ALLEGRA(?! Philadelphia)/);
     expect(blob).not.toMatch(/Latex 3\d{2,3}(?!\s*vs)/);

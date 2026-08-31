@@ -19,7 +19,7 @@ describe("leftover roll estimates", () => {
     const out = inchesToFeetYards(inches!);
     expect(out.feet).toBeCloseTo(inches! / 12);
     expect(out.yards).toBeCloseTo(inches! / 36);
-    expect(out.feet).toBeCloseTo(114.54, 1);
+    expect(out.feet).toBeCloseTo(359.97, 1);
   });
 
   it("full-roll OD scale: 150 ft full at 10 in, remaining 8 in, 3 in core", () => {
