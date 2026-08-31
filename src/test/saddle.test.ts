@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { layoutFromNest } from "@/lib/planner/sheet-layout";
 import { parseJobText } from "@/lib/planner/parse-job";
 import { MIXED_BOOKLET_WHY, planFromDescription, planFromJob, safePlanFromJob } from "@/lib/planner/plan";
-import { SADDLE_PAGES_ERROR, nestSaddle, sheetFitsPrBookletMaker } from "@/lib/planner/saddle";
+import {
+  SADDLE_PAGES_ERROR,
+  isClassicLetterSignature,
+  nestSaddle,
+  sheetFitsPrBookletMaker,
+} from "@/lib/planner/saddle";
 import { autoDescription } from "@/lib/planner/ticket-text";
 import type { JobInput } from "@/lib/planner/types";
 
@@ -51,6 +56,7 @@ describe("saddle booklet nest", () => {
     expect(nest.cuts.faceTrims).toBe(0);
     expect(nest.cuts.why).toMatch(/not a letter cut/i);
     expect(nest.signature).toMatchObject({ w: 17, h: 11, doubled: "w" });
+    expect(isClassicLetterSignature(nest, { w: 8.5, h: 11 })).toBe(true);
   });
 
   it("buy score is ceil(pages/4) sheets per booklet on 11×17", () => {
@@ -256,10 +262,15 @@ describe("any-size saddle — 5×7 playbill", () => {
     expect(plan!.recommended.nUp).toBe(1);
     expect(plan!.recommended.sheetsToBuy).toBe(2925);
     expect(plan!.recommended.impressions).toBe(5850);
-    expect(plan!.recommended.cuts.clicks).toBe(0);
+    expect(plan!.recommended.cuts.clicks).toBe(1);
     expect(plan!.recommended.cuts.splits).toBe(0);
+    expect(plan!.recommended.cuts.faceTrims).toBe(1);
+    expect(plan!.recommended.cuts.brief).toBe("0 splits, 1 face trim");
+    expect(plan!.recommended.cuts.why).toMatch(/Cut count: 1/);
+    expect(plan!.recommended.cuts.why).toMatch(/fold is not a Challenge cut/i);
     expect(plan!.recommended.cuts.why).toMatch(/11×17 in-line folds to 8\.5×11/i);
-    expect(plan!.recommended.cuts.why).toMatch(/trim to 5×7/i);
+    expect(plan!.recommended.cuts.why).toMatch(/1 face trim to 5×7/i);
+    expect(isClassicLetterSignature(plan!.recommended, { w: 5, h: 7 })).toBe(false);
     const ids = plan!.finishing.map((s) => s.machineId);
     expect(ids).toContain("xerox-pr-booklet-maker-finisher");
     expect(ids).toContain("challenge-305-crt");
@@ -323,11 +334,47 @@ describe("digest and letter booklet shortcuts use 11×17 in-line", () => {
     expect(plan.recommended.parent.id).toBe("tabloid");
     expect(plan.recommended.nUp).toBe(1);
     expect(plan.recommended.inlineFaceTrim).toBe(true);
+    expect(plan.recommended.cuts.clicks).toBe(1);
+    expect(plan.recommended.cuts.splits).toBe(0);
+    expect(plan.recommended.cuts.faceTrims).toBe(1);
+    expect(plan.recommended.cuts.brief).toBe("0 splits, 1 face trim");
+    expect(plan.recommended.cuts.why).toMatch(/Cut count: 1/);
+    expect(plan.recommended.cuts.why).toMatch(/1 face trim to 5\.5×8\.5/i);
+    expect(isClassicLetterSignature(plan.recommended, { w: 5.5, h: 8.5 })).toBe(false);
     const ids = plan.finishing.map((s) => s.machineId);
     expect(ids).toContain("xerox-pr-booklet-maker-finisher");
     expect(ids).toContain("challenge-305-crt");
     expect(ids).not.toContain("baumfolder-714");
     expect(ids).not.toContain("salco-rapid-106e");
+  });
+
+  it("650 mixed 5.5×8.5 8-page in-line saddle is Cut count: 1 (Challenge face trim, not the fold)", () => {
+    const plan = planFromJob(
+      saddleJob({
+        description: "650 mixed 5.5x8.5 8-page saddle (color cover / B&W insides)",
+        qty: 650,
+        finishW: 5.5,
+        finishH: 8.5,
+        pages: 8,
+        color: "mixed",
+        colorPages: 4,
+        bwPages: 4,
+        mixedSplit: "cover",
+      }),
+    );
+    expect(plan.recommended.inlineBooklet).toBe(true);
+    expect(plan.recommended.inlineFaceTrim).toBe(true);
+    expect(plan.recommended.parent.id).toBe("tabloid");
+    expect(plan.recommended.nUp).toBe(1);
+    expect(plan.recommended.sheetsToBuy).toBe(1300);
+    expect(plan.recommended.impressions).toBe(2600);
+    expect(plan.recommended.cuts.clicks).toBe(1);
+    expect(plan.recommended.cuts.splits).toBe(0);
+    expect(plan.recommended.cuts.faceTrims).toBe(1);
+    expect(plan.recommended.cuts.brief).toBe("0 splits, 1 face trim");
+    expect(plan.recommended.cuts.faceTrimReasons).toEqual(["8.5×11 book to finish after in-line fold"]);
+    expect(plan.press.machineId).toBe("versant-4100");
+    expect(plan.finishing.map((s) => s.machineId)).toContain("challenge-305-crt");
   });
 });
 
@@ -349,6 +396,8 @@ describe("any-size saddle — 2×2", () => {
     expect(plan!.recommended.parent.id).toBe("tabloid");
     expect(plan!.recommended.nUp).toBe(1);
     expect(plan!.recommended.sheetsToBuy).toBe(100);
+    expect(plan!.recommended.cuts.clicks).toBe(1);
+    expect(plan!.recommended.cuts.faceTrims).toBe(1);
     const ids = plan!.finishing.map((s) => s.machineId);
     expect(ids).toContain("xerox-pr-booklet-maker-finisher");
     expect(ids).toContain("challenge-305-crt");

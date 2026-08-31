@@ -1,5 +1,6 @@
 import { nestFrame, tallyGuillotine, type CutTally } from "./cut-count";
 import { repeatCaption } from "./nest";
+import { isClassicLetterSignature } from "./saddle";
 import { type JobInput, type NestResult } from "./types";
 
 export { finishInNestOrientation } from "./cut-count";
@@ -164,12 +165,10 @@ export function layoutFromNest(
     }
   }
 
-  const classicLetter =
-    saddle &&
-    nest.nUp === 1 &&
-    nest.cuts.clicks === 0 &&
-    Math.abs(sig.w - 17) < 0.05 &&
-    Math.abs(sig.h - 11) < 0.05;
+  const classicLetter = isClassicLetterSignature(nest, {
+    w: finish.finishW,
+    h: finish.finishH,
+  });
 
   return {
     parent: { w: feed.w, h: feed.h, label: parent.label },

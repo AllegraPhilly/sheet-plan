@@ -10,6 +10,8 @@ describe("glossary copy", () => {
     expect(GLOSSARY.buyScore.def).toMatch(/lowest wins/i);
     expect(GLOSSARY.impressions.def).toMatch(/press runs the sheet/i);
     expect(GLOSSARY.cutClick.def).toMatch(/Challenge 305 CRT/i);
+    expect(GLOSSARY.cutClick.def).toMatch(/post-fold face trim/i);
+    expect(GLOSSARY.cutClick.def).toMatch(/fold is not a cut/i);
     expect(GLOSSARY.finish.def).toMatch(/customer gets after cut/i);
     expect(GLOSSARY.gripper.def).toMatch(/0\.25 in/i);
     expect(GLOSSARY.trim.def).toMatch(/0\.125 in/i);
