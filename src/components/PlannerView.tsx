@@ -203,7 +203,7 @@ export function PlannerView() {
         >
           <h2 className="ticket-head">JOB TICKET</h2>
           <p className="mb-4 text-sm opacity-70">
-            Phone-first. Fields write the job line. Save stays on this phone — no login, not a quote.
+            Not a quote. Saves on this phone.
           </p>
 
           <label className="mb-3 block text-sm font-semibold">
