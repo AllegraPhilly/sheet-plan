@@ -72,11 +72,11 @@ export const GLOSSARY = {
   },
   eddm: {
     label: "EDDM-Retail",
-    def: "Every Door Direct Mail at the retail counter. No permit. Flats to a carrier route.",
+    def: "Every Door Direct Mail at the retail counter. No permit imprint. Flats only. A CRID is required (number not shown).",
   },
   permit: {
     label: "permit / CRID",
-    def: "USPS account to enter commercial MM/FCM. Closed here until confirmed.",
+    def: "USPS account to enter commercial MM/FCM. Closed here until confirmed. No CRID number on file — do not guess open.",
   },
   entry: {
     label: "Origin / DSCF / DDU",
@@ -88,7 +88,7 @@ export const GLOSSARY = {
   },
   tabbed: {
     label: "tabbed self-mailer",
-    def: "Folded piece held with tabs so it can meter without an envelope.",
+    def: "Folded piece held with nonperforated tabs so it can meter without an envelope. FSM max 6×10.5 in / 3 oz — smaller than an enveloped letter. Not a booklet.",
   },
   notice123: {
     label: "Notice 123",

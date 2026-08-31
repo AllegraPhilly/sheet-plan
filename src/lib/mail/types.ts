@@ -5,6 +5,8 @@ export type PieceKind =
   | "self-mailer"
   | "eddm-flat"
   | "card"
+  | "envelope"
+  | "booklet"
   | "other";
 
 export type Addressing = "none" | "occupant" | "personalized" | "occupant-eddm";
@@ -19,7 +21,7 @@ export type MailInput = {
   heightIn: number;
   thicknessIn: number;
   weightOz: number;
-  fold: "none" | "half" | "tri" | "letter" | "self-mailer";
+  fold: "none" | "half" | "tri" | "letter" | "quarter" | "self-mailer";
   nonprofit: boolean;
   goal: Goal;
   content: ContentClass;
@@ -44,12 +46,33 @@ export type RateCell = {
   notes: string[];
 };
 
+export type StaffLine = {
+  id: string;
+  kind: "do" | "reject" | "hold";
+  say: string;
+  why: string;
+  shop: string;
+};
+
+export type UspsShape = "letter" | "card" | "flat" | "parent-sheet" | "other";
+
+export type PieceGate = {
+  finished: { widthIn: number; heightIn: number; thicknessIn: number };
+  uspsShape: UspsShape;
+  machinableLetter: boolean;
+  letterSelfMailer: boolean;
+  eddmFlatOk: boolean;
+  parentSheet: boolean;
+};
+
 export type MailAdvice = {
   contentGate: {
     class: ContentClass;
     fcmRequired: boolean;
     why: string;
   };
+  decisions: StaffLine[];
+  pieceGate: PieceGate;
   actionable: RateCell[];
   onceEligible: RateCell[];
   fees: RateCell[];
@@ -60,14 +83,39 @@ export type MailAdvice = {
     eddm: string;
   };
   induction: {
-    bmeu: { name: string; address: string; city: string; zip: string };
+    bmeu: {
+      name: string;
+      address: string;
+      city: string;
+      zip: string;
+      phone: string;
+    };
+    destScf: string;
+    destScfZips: string;
     meterMachineId: string;
     mailingAssignedTo: string[];
+  };
+  shop: {
+    permit_not_open: true;
+    no_addresser: true;
+    no_confirmed_inserter: true;
+    one_meter: true;
+    no_select_plus: true;
+    no_imsb: true;
+    postal_wizard_locked: true;
   };
   selfMailer: {
     tabbedRequired: boolean;
     note: string;
+    fsmOk?: boolean;
+    tabIn?: number;
   };
+  eddmIndicia: {
+    lines: readonly string[];
+    typeSpec: string;
+    clearIn: number;
+    simplifiedAddress: string;
+  } | null;
   profit_flag?: never;
   notice: {
     name: "Notice 123";
@@ -77,10 +125,16 @@ export type MailAdvice = {
 };
 
 export const PHILLY_BMEU = {
-  name: "Philadelphia BMEU",
+  name: "Philadelphia BMEU Premier",
   address: "7500 Lindbergh Blvd",
   city: "Philadelphia, PA",
   zip: "19176",
+  phone: "1-877-672-0007",
+} as const;
+
+export const DEST_SCF = {
+  name: "SCF PHILADELPHIA PA 190",
+  zips: "189–192, 194",
 } as const;
 
 export const NOTICE = {

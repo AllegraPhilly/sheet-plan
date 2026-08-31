@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { TermLabel } from "@/components/GlossaryTip";
 import { adviseMail } from "@/lib/mail/advise";
-import type { ContentClass, Goal, MailInput, PieceKind, RateCell } from "@/lib/mail/types";
+import type { ContentClass, Goal, MailInput, PieceKind, RateCell, StaffLine } from "@/lib/mail/types";
 
 const start: MailInput = {
   piece: "letter",
@@ -27,6 +27,8 @@ export function MailAdvisorView() {
   function patch<K extends keyof MailInput>(key: K, value: MailInput[K]) {
     setInput((s) => ({ ...s, [key]: value }));
   }
+
+  const fin = advice.pieceGate.finished;
 
   return (
     <div>
@@ -58,6 +60,8 @@ export function MailAdvisorView() {
               <option value="self-mailer">Self-mailer</option>
               <option value="eddm-flat">EDDM flat</option>
               <option value="card">Card</option>
+              <option value="envelope">Envelope</option>
+              <option value="booklet">Booklet</option>
             </select>
           </label>
           <div className="mt-3 grid min-w-0 grid-cols-2 gap-3">
@@ -100,7 +104,20 @@ export function MailAdvisorView() {
                 onChange={(e) => patch("heightIn", Number(e.target.value))}
               />
             </label>
+            <label className="text-sm font-semibold">
+              T (in)
+              <input
+                type="number"
+                step={0.001}
+                className="field"
+                value={input.thicknessIn}
+                onChange={(e) => patch("thicknessIn", Number(e.target.value))}
+              />
+            </label>
           </div>
+          <p className="mt-2 text-xs opacity-70">
+            Enter the <strong>finished</strong> piece. An 11×17 parent is not a USPS shape.
+          </p>
           <label className="mt-3 block text-sm font-semibold">
             Addressing
             <select
@@ -125,6 +142,7 @@ export function MailAdvisorView() {
               <option value="half">Half</option>
               <option value="tri">Tri</option>
               <option value="letter">Letter</option>
+              <option value="quarter">Quarter</option>
               <option value="self-mailer">Self-mailer</option>
             </select>
           </label>
@@ -159,13 +177,45 @@ export function MailAdvisorView() {
               checked={input.nonprofit}
               onChange={(e) => patch("nonprofit", e.target.checked)}
             />
-            Nonprofit (does not apply to EDDM-Retail)
+            Nonprofit — client Form 3624 (pending = regular MM, 703.1.9)
           </label>
         </form>
 
         <section className="ticket p-3 sm:p-4">
           <h2 className="ticket-head">ADVICE</h2>
           <p className="mt-2 text-sm">{advice.contentGate.why}</p>
+          <p className="mt-2 text-sm opacity-70">
+            Finished piece {fin.widthIn.toFixed(3)}×{fin.heightIn.toFixed(3)}×{fin.thicknessIn.toFixed(3)} in — USPS{" "}
+            {advice.pieceGate.uspsShape}
+            {advice.pieceGate.parentSheet ? ". Parent sheet is not a USPS shape." : "."}
+          </p>
+
+          <h3 className="ticket-head mt-6 text-2xl">Say this / Why / Shop</h3>
+          <p className="text-sm opacity-70">Content test before cheap postage. Decision order is fixed.</p>
+          <ol className="mt-2 space-y-3">
+            {advice.decisions.map((d) => (
+              <DecisionCard key={d.id} line={d} />
+            ))}
+          </ol>
+
+          {advice.eddmIndicia && (
+            <div className="rule mt-4 pb-3">
+              <h3 className="ticket-head text-2xl">EDDM-Retail indicia mock</h3>
+              <p className="mt-1 text-xs opacity-70">
+                {advice.eddmIndicia.typeSpec}, {advice.eddmIndicia.clearIn}&quot; clear. No permit number.
+              </p>
+              <p className="mono mt-2 text-sm leading-5">
+                {advice.eddmIndicia.lines.map((ln) => (
+                  <span key={ln} className="block">
+                    {ln}
+                  </span>
+                ))}
+              </p>
+              <p className="mt-2 text-sm">
+                Simplified address: <strong>{advice.eddmIndicia.simplifiedAddress}</strong>
+              </p>
+            </div>
+          )}
 
           <h3 className="ticket-head mt-6">Actionable now</h3>
           <CellTable cells={advice.actionable} empty="No hardcoded actionable cell for this piece." />
@@ -173,11 +223,11 @@ export function MailAdvisorView() {
           <h3 className="ticket-head mt-6">Once eligible</h3>
           <p className="text-sm opacity-70">
             <TermLabel term="permit">Permit/CRID</TermLabel> commercial MM and FCM presort are{" "}
-            <strong>NOT OPEN</strong>. Cells stay visible with{" "}
+            <strong>NOT OPEN</strong>. No CRID or imprint on file — do not guess open. Cells stay visible with{" "}
             <span className="mono">shop_blockers: permit_not_open</span>.
           </p>
           <p className="mt-1 text-sm opacity-70">
-            Entry: <TermLabel term="entry">Origin / DSCF / DDU</TermLabel>
+            Entry: <TermLabel term="entry">Origin / DSCF / DDU</TermLabel>. DDU letter prices are not offered.
           </p>
           <CellTable cells={advice.onceEligible} empty="No MM / comm FCM cell for this shape." />
 
@@ -209,11 +259,11 @@ export function MailAdvisorView() {
           </ul>
           {(input.piece === "letter" || input.piece === "self-mailer" || input.piece === "card") && (
             <p className="mt-2 text-sm">
-              <TermLabel term="nonmachinable">Nonmachinable</TermLabel> letters pick up the Notice 123 surcharge
-              when they cannot run on USPS machines.
+              <TermLabel term="nonmachinable">Nonmachinable</TermLabel> letters pick up $0.49 (p.6 n.1) when they
+              cannot run on USPS machines.
             </p>
           )}
-          {advice.selfMailer.tabbedRequired && (
+          {(advice.selfMailer.tabbedRequired || input.piece === "booklet" || input.piece === "envelope") && (
             <p className="mt-2 text-sm">
               <TermLabel term="tabbed">Tabbed self-mailer</TermLabel> — {advice.selfMailer.note}
             </p>
@@ -222,19 +272,42 @@ export function MailAdvisorView() {
           <h3 className="ticket-head mt-6">Induction</h3>
           <p className="mt-2 text-sm">
             {advice.induction.bmeu.name}: {advice.induction.bmeu.address}, {advice.induction.bmeu.city}{" "}
-            {advice.induction.bmeu.zip}
+            {advice.induction.bmeu.zip}. {advice.induction.bmeu.phone}.
           </p>
           <p className="mt-1 text-sm">
-            Meter path: Pitney Bowes Connect+ 2000. Insert / band as needed. MAILBOT is email only — never assigned
-            mailing.
+            Dest SCF {advice.induction.destScfZips}: {advice.induction.destScf}. DDU letter prices not offered.
+          </p>
+          <p className="mt-1 text-sm">
+            One meter: Pitney Bowes Connect+ 2000. Do not plan a second Select+. No confirmed addresser (no_addresser).
+            No confirmed inserter. Do not offer IMsb for client mail. Postal Wizard stays locked until permit/CRID is
+            open. MAILBOT is email only — never assigned mailing.
           </p>
           <p className="mt-3 text-xs opacity-60">
             <TermLabel term="notice123">{advice.notice.name}</TermLabel> effective {advice.notice.effective}.{" "}
-            {advice.notice.miss}
+            {advice.notice.miss} Open cells: p.6. Locked: p.13 (min 500), p.17–20. Do not interpolate ounces or sorts.
           </p>
         </section>
       </div>
     </div>
+  );
+}
+
+function DecisionCard({ line }: { line: StaffLine }) {
+  const tone =
+    line.kind === "reject" ? "text-[var(--stamp)]" : line.kind === "hold" ? "text-[var(--amber)]" : "text-[var(--ok)]";
+  return (
+    <li className="rule pb-3">
+      <p className={`mono text-[10px] uppercase tracking-widest ${tone}`}>{line.kind}</p>
+      <p className="mt-1 text-sm">
+        <strong>Say this.</strong> {line.say}
+      </p>
+      <p className="mt-1 text-sm">
+        <strong>Why (DMM).</strong> {line.why}
+      </p>
+      <p className="mt-1 text-sm">
+        <strong>What we do in this shop.</strong> {line.shop}
+      </p>
+    </li>
   );
 }
 
