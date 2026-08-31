@@ -18,19 +18,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="relative min-h-screen">
-      <header className="site-header bg-[var(--purple)]">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 pb-2 pt-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="brand-chip">
+      <header className="site-header">
+        <div className="identity-bar" aria-hidden="true" />
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 pb-1 pt-3">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+            <span className="brand-mark-space">
               <img
                 src={publicUrl("/brand/allegra-a.svg")}
                 alt=""
-                width={56}
-                height={48}
+                width={148}
+                height={109}
                 className="brand-mark"
               />
             </span>
-            <h1 className="min-w-0 text-xl font-bold leading-none text-white sm:text-2xl">
+            <h1 className="min-w-0 text-xl font-bold leading-none text-[var(--purple)] sm:text-2xl">
               Sheet Plan
             </h1>
           </div>

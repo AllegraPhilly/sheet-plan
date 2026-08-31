@@ -31,19 +31,37 @@ describe("Allegra 2026 shop-floor identity", () => {
     expect(svg).toMatch(/Roboto/);
   });
 
-  it("ships the official 4-color A in the header and official horizontal lockup in the footer", () => {
+  it("ships the official cropped 4-color A in the header — not the reconstructed mark", () => {
     const root = new URL("../../", import.meta.url);
+    expect(existsSync(new URL("scripts/build-allegra-a.py", root))).toBe(false);
     expect(existsSync(new URL("public/brand/allegra-a.svg", root))).toBe(true);
     expect(existsSync(new URL("public/brand/allegra-a.png", root))).toBe(true);
     expect(existsSync(new URL("public/brand/allegra-lockup.svg", root))).toBe(true);
     expect(existsSync(new URL("public/brand/allegra-lockup.png", root))).toBe(true);
+
+    const aSvg = readFileSync(new URL("public/brand/allegra-a.svg", root), "utf8");
+    const lockupSvg = readFileSync(new URL("public/brand/allegra-lockup.svg", root), "utf8");
+    expect(aSvg).not.toMatch(/Allegra standalone A/);
+    expect(aSvg).not.toMatch(/id="ribbon"/);
+    expect(aSvg).not.toMatch(/Stone Sans/);
+    expect(aSvg).toMatch(/Allegra Logo-MPM/);
+    expect(aSvg).toMatch(/authorized Alliance Franchise Brands/);
+    expect(aSvg).toMatch(/viewBox="0 0 148 109"/);
+    expect(aSvg).toMatch(/M104\.262947,21\.4984621/);
+    expect(lockupSvg).toMatch(/M104\.262947,21\.4984621/);
+    expect(aSvg).toMatch(/id="linearGradient-3"/);
+    expect(aSvg).toMatch(/stop-color="#4E2991"/);
+    expect(aSvg).toMatch(/stop-color="#ED1C24"/);
+    expect(aSvg).toMatch(/stop-color="#FCD205"/);
+    expect(aSvg).not.toMatch(/id="path36"/);
+    expect(aSvg).not.toMatch(/id="path12"/);
+    expect(lockupSvg).toMatch(/authorized Alliance Franchise Brands art/);
+    expect(lockupSvg).not.toMatch(/Stone Sans/);
+
     const png = readFileSync(new URL("public/brand/allegra-a.png", root));
     expect(png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(true);
     const lockupPng = readFileSync(new URL("public/brand/allegra-lockup.png", root));
     expect(lockupPng.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(true);
-    const lockupSvg = readFileSync(new URL("public/brand/allegra-lockup.svg", root), "utf8");
-    expect(lockupSvg).toMatch(/authorized Alliance Franchise Brands art/);
-    expect(lockupSvg).not.toMatch(/Stone Sans/);
 
     const shell = src("components/AppShell.tsx");
     const layout = src("app/layout.tsx");
@@ -52,6 +70,11 @@ describe("Allegra 2026 shop-floor identity", () => {
     const footer = shell.slice(shell.indexOf("<footer"));
     expect(header).toMatch(/brand\/allegra-a/);
     expect(header).toMatch(/Sheet Plan/);
+    expect(header).toMatch(/text-\[var\(--purple\)\]/);
+    expect(header).toMatch(/identity-bar/);
+    expect(header).toMatch(/brand-mark-space/);
+    expect(header).not.toMatch(/brand-chip/);
+    expect(header).not.toMatch(/bg-\[var\(--purple\)\]/);
     expect(header).toMatch(/Wide \(trial\)/);
     expect(header).toMatch(/navActive/);
     expect(header).toMatch(/\/floor\/wide\//);
@@ -61,13 +84,13 @@ describe("Allegra 2026 shop-floor identity", () => {
     expect(header).toMatch(/nav-label-short/);
     expect(header).toMatch(/nav-label-full/);
     expect(header).toMatch(/site-nav/);
-    expect(header).toMatch(/bg-\[var\(--purple\)\]/);
     expect(header).not.toMatch(/Allegra Philadelphia/);
     expect(header).not.toMatch(/MARKETING/);
     expect(header).not.toMatch(/PRINT • MAIL/);
     expect(header).not.toMatch(/Stone Sans/);
     expect(header).not.toMatch(/ALLEGRA/);
     expect(footer).toMatch(/brand\/allegra-lockup/);
+    expect(footer).toMatch(/INTERNAL staff tool/);
     expect(footer).not.toMatch(/Stone Sans/);
     expect(layout).not.toMatch(/watermark/);
     expect(css).toMatch(/\.nav-tab-active/);
@@ -75,9 +98,13 @@ describe("Allegra 2026 shop-floor identity", () => {
     expect(css).toMatch(/\.site-nav\s*\{[\s\S]*?grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
     expect(css).toMatch(/\.nav-label-short/);
     expect(css).toMatch(/\.nav-label-full/);
-    expect(css).toMatch(/\.brand-chip/);
-    expect(css).toMatch(/\.brand-mark\s*\{[\s\S]*?height:\s*2\.5rem/);
+    expect(css).not.toMatch(/\.brand-chip/);
+    expect(css).toMatch(/\.identity-bar\s*\{[\s\S]*?background:\s*var\(--purple\)/);
+    expect(css).toMatch(/\.site-header\s*\{[\s\S]*?background:\s*#fff/);
+    expect(css).toMatch(/\.brand-mark-space/);
+    expect(css).toMatch(/\.brand-mark\s*\{[\s\S]*?height:\s*2\.85rem/);
     expect(css).toMatch(/border-left:\s*4px solid var\(--purple\)/);
+    expect(css).toMatch(/border-radius:\s*8px/);
   });
 
   it("keeps INTERNAL as a quiet Roboto label and no independently-owned footnote", () => {

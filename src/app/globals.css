@@ -55,28 +55,35 @@ h3,
 }
 
 .site-header {
-  color: #fff;
+  background: #fff;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
 }
 
-.brand-chip {
+.identity-bar {
+  height: 6px;
+  width: 100%;
+  background: var(--purple);
+}
+
+/* Identity clear space around the official A. Not a chip, not a favicon tile. */
+.brand-mark-space {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: #fff;
-  border-radius: 8px;
-  padding: 0.45rem 0.5rem;
+  padding: 0.5rem 0.4rem 0.5rem 0.2rem;
 }
 
 .brand-mark {
   display: block;
-  height: 2.5rem;
+  height: 2.85rem;
   width: auto;
 }
 
 @media (min-width: 640px) {
   .brand-mark {
-    height: 3rem;
+    height: 3.6rem;
   }
 }
 
@@ -108,7 +115,7 @@ h3,
   min-width: 0;
   min-height: 2.75rem;
   padding: 0.4rem 0.25rem 0.55rem;
-  color: color-mix(in srgb, #fff 72%, transparent);
+  color: color-mix(in srgb, var(--purple) 72%, transparent);
   font-weight: 700;
   font-size: 0.875rem;
   text-decoration: none;
@@ -146,11 +153,11 @@ h3,
 }
 
 .nav-tab:hover {
-  color: #fff;
+  color: var(--purple);
 }
 
 .nav-tab-active {
-  color: #fff;
+  color: var(--purple);
 }
 
 .nav-tab-active::after {
@@ -201,7 +208,7 @@ h3,
 }
 
 .site-header .quiet-note {
-  color: color-mix(in srgb, #fff 70%, transparent);
+  color: color-mix(in srgb, var(--ink) 55%, transparent);
 }
 
 .field {
@@ -342,7 +349,7 @@ input[type="date"].field::-webkit-datetime-edit-year-field {
 }
 
 .site-header .glossary-mark:focus-visible {
-  outline-color: var(--gold);
+  outline-color: var(--purple);
 }
 
 .glossary-tip {
