@@ -44,7 +44,7 @@ export const GLOSSARY = {
   },
   fold: {
     label: "fold",
-    def: "Letters on the Baumfolder 714. Bigger than 14×20 on the Stahl B20.",
+    def: "Letters on the Baumfolder 714. Small batches (already printed, job qty ≤ 50) can fold on the Accurio unit top feeder with no click — half-fold 1–5 sheets per set, tri-fold 1–3. Folder-tray output is small (~35 sets). Bigger than 14×20 on the Stahl B20.",
   },
   saddle: {
     label: "saddle booklet",

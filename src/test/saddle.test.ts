@@ -588,3 +588,57 @@ describe("Accurio in-line saddle sheet-count cap", () => {
     expect(plan.why.join(" ")).not.toContain(MIXED_BOOKLET_WHY);
   });
 });
+
+describe("Accurio unit top feeder is not a saddle path", () => {
+  it("color / B&W / mixed in-line saddles stay booklet-maker, not top feeder or Baum", () => {
+    const color = planFromJob(saddleJob({ qty: 25, description: "25 color 16-page saddle" }));
+    const bw = planFromJob(saddleJob({ qty: 25, color: "bw", description: "25 bw 16-page saddle" }));
+    const mixed = planFromJob(
+      saddleJob({
+        qty: 25,
+        color: "mixed",
+        pages: 16,
+        colorPages: 4,
+        bwPages: 12,
+        mixedSplit: "cover",
+        description: "25 mixed 16-page saddle",
+      }),
+    );
+    for (const plan of [color, bw, mixed]) {
+      expect(plan.recommended.inlineBooklet).toBe(true);
+      const ids = plan.finishing.map((s) => s.machineId);
+      expect(ids).not.toContain("accurio-top-feeder");
+      expect(ids).not.toContain("baumfolder-714");
+      expect(ids).not.toContain("stahl-folder");
+    }
+    expect(color.finishing.map((s) => s.machineId)).toContain("xerox-pr-booklet-maker-finisher");
+    expect(bw.finishing.map((s) => s.machineId)).toContain("accurio-saddle-booklet-maker");
+    expect(mixed.finishing.map((s) => s.machineId)).toContain("accurio-saddle-booklet-maker");
+  });
+
+  it("offline saddle overflow stays Baum + Salco, not the unit top feeder", () => {
+    const color = planFromJob(saddleJob({ pages: 124, qty: 25, description: "25 color 124-page saddle" }));
+    const bw = planFromJob(
+      saddleJob({ color: "bw", pages: 84, qty: 25, description: "25 bw 84-page saddle" }),
+    );
+    const mixed = planFromJob(
+      saddleJob({
+        color: "mixed",
+        pages: 84,
+        colorPages: 4,
+        bwPages: 80,
+        mixedSplit: "cover",
+        qty: 25,
+        description: "25 mixed 84-page saddle",
+      }),
+    );
+    for (const plan of [color, bw, mixed]) {
+      expect(plan.recommended.inlineBooklet).toBeFalsy();
+      const ids = plan.finishing.map((s) => s.machineId);
+      expect(ids).toContain("baumfolder-714");
+      expect(ids).toContain("salco-rapid-106e");
+      expect(ids).not.toContain("accurio-top-feeder");
+      expect(ids).not.toContain("stahl-folder");
+    }
+  });
+});

@@ -379,6 +379,10 @@ describe("Mail Advisor GAPS", () => {
     expect(fsm?.shop).toMatch(/1\.5/);
     expect(fsm?.shop).toMatch(/Baum 714/);
     expect(JSON.stringify(ok).toLowerCase()).not.toMatch(/stahl/);
+    expect(mailingAssignees(ok)).not.toContain("accurio-top-feeder");
+    expect(JSON.stringify(ok.induction)).not.toMatch(/accurio-top-feeder|unit top feeder/i);
+    expect(ok.selfMailer.note).toMatch(/Baum 714/);
+    expect(ok.selfMailer.note).not.toMatch(/accurio-top-feeder|unit top feeder/i);
     expect(ok.selfMailer.note).not.toMatch(/final fold on the bottom/i);
 
     const heavy = adviseMail(base({ piece: "self-mailer", fold: "half", widthIn: 8.5, heightIn: 11, weightOz: 1.2 }));

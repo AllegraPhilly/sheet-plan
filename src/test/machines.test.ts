@@ -53,6 +53,32 @@ describe("floor catalog", () => {
     expect(acc.floorFacts?.join(" ")).not.toMatch(/no booklet maker/i);
   });
 
+  it("Accurio unit top feeder is confident fold-only, no click, no invented plate", () => {
+    const feeder = machineById("accurio-top-feeder")!;
+    expect(CONFIDENT_IDS).toContain("accurio-top-feeder");
+    expect(feeder.name).toBe("AccurioPress 6120 unit top feeder");
+    expect(feeder.kind).toBe("folder");
+    expect(feeder.confidence).toBe("confident");
+    expect(feeder.role).toMatch(/fold already-complete sheets on Accurio with no click/i);
+    expect(feeder.maxSheetIn).toEqual({ w: 12.76, h: 18.23 });
+    const notes = feeder.notes.join(" ");
+    expect(notes).toMatch(/no click|bypasses click/i);
+    expect(notes).toMatch(/job qty ≤ 50/);
+    expect(notes).not.toMatch(/50 sheets/);
+    expect(notes).toMatch(/1–5 sheets per set/);
+    expect(notes).toMatch(/1–3 sheets per set/);
+    expect(notes).toMatch(/~35 sets/);
+    expect(notes).toMatch(/not mixed-saddle cover insert/i);
+    expect(notes).toMatch(/do not pick 12×18/i);
+    expect(notes).toMatch(/12\.76/);
+    expect(notes).not.toMatch(/PI-502|SD-510|SD-513|SD-506/i);
+    expect(JSON.stringify(feeder)).not.toMatch(/PI-502|SD-510/i);
+    expect(machineById("accurio-6120")!.notes.join(" ")).toMatch(/unit top feeder/);
+    expect(machineById("accurio-6120")!.notes.join(" ")).toMatch(/engine fold-only is still forbidden/i);
+    expect(machineById("accurio-saddle-booklet-maker")!.notes.join(" ")).toMatch(/unit top feeder/);
+    expect(machineById("accurio-saddle-booklet-maker")!.notes.join(" ")).toMatch(/not mixed-saddle cover insert/i);
+  });
+
   it("Accurio in-line saddle / booklet maker is catalogued without a module plate id", () => {
     const fin = machineById("accurio-saddle-booklet-maker")!;
     expect(fin.name).toBe("AccurioPress 6120 in-line saddle / booklet maker");
@@ -147,5 +173,16 @@ describe("floor catalog", () => {
     const versant = machineById("versant-4100")!;
     expect(versant.notes.join(" ")).toMatch(/Color saddles that fit/i);
     expect(versant.notes.join(" ")).not.toMatch(/Color and mixed saddle that fit/i);
+  });
+
+  it("UI catalog never claims PI-502 or SD-510 is installed", () => {
+    const blob = JSON.stringify(MACHINES);
+    expect(blob).not.toMatch(/PI-502|SD-510|SD-513|SD-506/i);
+    const srcRoot = new URL("../", import.meta.url).pathname;
+    for (const file of walkSrc(srcRoot)) {
+      if (file.includes("/test/")) continue;
+      const text = readFileSync(file, "utf8");
+      expect(text, file).not.toMatch(/PI-502|SD-510/i);
+    }
   });
 });

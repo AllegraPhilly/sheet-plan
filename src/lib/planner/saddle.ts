@@ -22,6 +22,10 @@ export const PR_BOOKLET_MIN_SHEET = { w: 7.17, h: 10.12 };
 export const PR_BOOKLET_MAX_SHEET = { w: 13, h: 19.2 };
 /** 11×17 in-line folds to this book. Smaller finish face-trims after. */
 export const INLINE_FOLD_BOOK = { w: 8.5, h: 11 };
+/** Accurio tray max unless PF-710 (not assumed). */
+export const ACCURIO_TRAY_MAX = { w: 12.76, h: 18.23 };
+/** Job-qty cap for Accurio unit top feeder folds — pieces, not sheets in the fold. */
+export const ACCURIO_TOP_FEEDER_MAX_QTY = 50;
 
 export type InlineBookletOn = "versant" | "accurio";
 
