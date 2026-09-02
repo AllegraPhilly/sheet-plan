@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import { FORBIDDEN_UI_STRINGS, MACHINES, machineById, neverRouteIds } from "@/lib/machines";
 import { exactTileLayout, isExactTile, nestOnParent, rankParents } from "@/lib/planner/nest";
 import { commitNumberField, parseNumberDraft } from "@/lib/planner/num-field";
-import { mustStep, planFromDescription, planFromJob, safePlanFromJob } from "@/lib/planner/plan";
+import {
+  finishingSteps,
+  mustStep,
+  pickOfflineFolder,
+  planFromDescription,
+  planFromJob,
+  safePlanFromJob,
+} from "@/lib/planner/plan";
 import { PARENTS, VERSANT_PLAN_MAX, type JobInput } from "@/lib/planner/types";
 
 const letterJob = (over: Partial<JobInput> = {}): JobInput => ({
@@ -289,6 +296,61 @@ describe("any typed finish is a real gang", () => {
     expect(plan.lines![1].press.machineId).toBe("accurio-6120");
     expect(plan.lines![0].nest.nUp).toBe(2);
     expect(plan.lines![1].nest.nUp).toBe(2);
+  });
+});
+
+describe("offline folder routing", () => {
+  it("letter 8.5×11 half-fold stays Baumfolder 714, not Stahl", () => {
+    const plan = planFromJob(letterJob({ fold: "half", description: "200 color 8.5x11 half fold" }));
+    const ids = plan.finishing.map((s) => s.machineId);
+    expect(ids).toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
+    expect(pickOfflineFolder(plan.job, plan.recommended)).toBe("baumfolder-714");
+  });
+
+  it("letter-size Z fold stays Baum, not Stahl", () => {
+    const plan = planFromJob(letterJob({ fold: "z", description: "200 color 8.5x11 Z fold" }));
+    const ids = plan.finishing.map((s) => s.machineId);
+    expect(ids).toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
+  });
+
+  it("11×17 half-fold still fits Baum 14×20", () => {
+    const plan = planFromJob(
+      letterJob({ finishW: 11, finishH: 17, fold: "half", description: "50 color 11x17 half fold" }),
+    );
+    const ids = plan.finishing.map((s) => s.machineId);
+    expect(ids).toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
+  });
+
+  it("a fold whose finish exceeds 14×20 uses Stahl B20, not Baum", () => {
+    const plan = planFromJob(
+      letterJob({
+        description: "25 color 18x24 half fold",
+        qty: 25,
+        finishW: 18,
+        finishH: 24,
+        fold: "half",
+      }),
+    );
+    const ids = plan.finishing.map((s) => s.machineId);
+    expect(ids).toContain("stahl-folder");
+    expect(ids).not.toContain("baumfolder-714");
+  });
+
+  it("finishingSteps with a parent/sheet over 14×20 uses Stahl, not Baum", () => {
+    const nest = nestOnParent(letterJob(), PARENTS[0])!;
+    const big = {
+      ...nest,
+      parent: { ...nest.parent, label: "20×26", w: 20, h: 26 },
+    };
+    const job = letterJob({ finishW: 20, finishH: 26, fold: "half", description: "10 color 20x26 half fold" });
+    const steps = finishingSteps(job, big);
+    const ids = steps.map((s) => s.machineId);
+    expect(ids).toContain("stahl-folder");
+    expect(ids).not.toContain("baumfolder-714");
+    expect(pickOfflineFolder(job, big)).toBe("stahl-folder");
   });
 });
 

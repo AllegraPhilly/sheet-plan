@@ -377,6 +377,8 @@ describe("Mail Advisor GAPS", () => {
     expect(fsm?.why).toMatch(/70# book/);
     expect(fsm?.why).toMatch(/postalpro\.usps\.com\/node\/2711/);
     expect(fsm?.shop).toMatch(/1\.5/);
+    expect(fsm?.shop).toMatch(/Baum 714/);
+    expect(JSON.stringify(ok).toLowerCase()).not.toMatch(/stahl/);
     expect(ok.selfMailer.note).not.toMatch(/final fold on the bottom/i);
 
     const heavy = adviseMail(base({ piece: "self-mailer", fold: "half", widthIn: 8.5, heightIn: 11, weightOz: 1.2 }));

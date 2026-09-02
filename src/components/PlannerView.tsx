@@ -334,7 +334,7 @@ export function PlannerView() {
               </select>
             </label>
             <label className="min-w-0 text-sm font-semibold">
-              Fold
+              <TermLabel term="fold">Fold</TermLabel>
               <select
                 className={fieldClass}
                 value={job.fold}

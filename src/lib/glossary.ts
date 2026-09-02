@@ -42,6 +42,10 @@ export const GLOSSARY = {
     label: "exact tile",
     def: "8.5×11 on 11×17 fits 2-up with no gripper/trim waste (one cut).",
   },
+  fold: {
+    label: "fold",
+    def: "Letters on the Baumfolder 714. Bigger than 14×20 on the Stahl B20.",
+  },
   saddle: {
     label: "saddle booklet",
     def: "One fold, 4 pages per signature sheet. Color that fits: 11×17 1-up, fold and saddle in the Xerox PR Booklet Maker Finisher. B&W and mixed that fit: AccurioPress 6120 in-line saddle (11×17). Not letter 2-up cut on the Challenge.",

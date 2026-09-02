@@ -80,6 +80,7 @@ describe("saddle booklet plan", () => {
     expect(ids).toContain("xerox-pr-booklet-maker-finisher");
     expect(ids).not.toContain("challenge-305-crt");
     expect(ids).not.toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
     expect(ids).not.toContain("salco-rapid-106e");
     expect(ids).not.toContain("accurio-saddle-booklet-maker");
     expect(plan.why.join(" ")).toMatch(/PR Booklet Maker/i);
@@ -102,6 +103,7 @@ describe("saddle booklet plan", () => {
     expect(ids).toContain("xerox-pr-booklet-maker-finisher");
     expect(ids).not.toContain("challenge-305-crt");
     expect(ids).not.toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
     expect(ids).not.toContain("salco-rapid-106e");
     expect(ids).not.toContain("accurio-saddle-booklet-maker");
   });
@@ -116,6 +118,7 @@ describe("saddle booklet plan", () => {
     const ids = plan.finishing.map((s) => s.machineId);
     expect(ids).toContain("accurio-saddle-booklet-maker");
     expect(ids).not.toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
     expect(ids).not.toContain("salco-rapid-106e");
     expect(ids).not.toContain("xerox-pr-booklet-maker-finisher");
     expect(ids).not.toContain("challenge-305-crt");
@@ -127,6 +130,7 @@ describe("saddle booklet plan", () => {
     expect(ids).toContain("xerox-pr-booklet-maker-finisher");
     expect(ids).not.toContain("graphic-whizard-creasemaster-plus-ts");
     expect(ids).not.toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
     expect(ids).not.toContain("salco-rapid-106e");
     expect(ids).not.toContain("accurio-saddle-booklet-maker");
   });
@@ -137,6 +141,7 @@ describe("saddle booklet plan", () => {
     expect(ids).toContain("accurio-saddle-booklet-maker");
     expect(ids).not.toContain("graphic-whizard-creasemaster-plus-ts");
     expect(ids).not.toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
     expect(ids).not.toContain("salco-rapid-106e");
     expect(ids).not.toContain("xerox-pr-booklet-maker-finisher");
   });
@@ -284,6 +289,7 @@ describe("any-size saddle — 5×7 playbill", () => {
     expect(ids).toContain("xerox-pr-booklet-maker-finisher");
     expect(ids).toContain("challenge-305-crt");
     expect(ids).not.toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
     expect(ids).not.toContain("salco-rapid-106e");
     expect(ids).not.toContain("accurio-saddle-booklet-maker");
     expect(plan!.finishing.find((s) => s.machineId === "challenge-305-crt")?.action).toMatch(
@@ -329,6 +335,7 @@ describe("any-size saddle — 5×7 playbill", () => {
     expect(ids).toContain("accurio-saddle-booklet-maker");
     expect(ids).toContain("challenge-305-crt");
     expect(ids).not.toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
     expect(ids).not.toContain("salco-rapid-106e");
     expect(ids).not.toContain("xerox-pr-booklet-maker-finisher");
   });
@@ -360,6 +367,7 @@ describe("digest and letter booklet shortcuts use 11×17 in-line", () => {
     expect(ids).toContain("xerox-pr-booklet-maker-finisher");
     expect(ids).toContain("challenge-305-crt");
     expect(ids).not.toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
     expect(ids).not.toContain("salco-rapid-106e");
     expect(ids).not.toContain("accurio-saddle-booklet-maker");
   });
@@ -404,6 +412,7 @@ describe("digest and letter booklet shortcuts use 11×17 in-line", () => {
     expect(ids).not.toContain("xerox-pr-booklet-maker-finisher");
     expect(ids).not.toContain("salco-rapid-106e");
     expect(ids).not.toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
     expect(plan.why).toContain(MIXED_SADDLE_WHY);
     expect(plan.why.join(" ")).not.toMatch(/too much handling/);
     expect(plan.why.join(" ")).not.toContain(MIXED_BOOKLET_WHY);
@@ -434,6 +443,7 @@ describe("any-size saddle — 2×2", () => {
     expect(ids).toContain("xerox-pr-booklet-maker-finisher");
     expect(ids).toContain("challenge-305-crt");
     expect(ids).not.toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
     expect(ids).not.toContain("salco-rapid-106e");
     expect(ids).not.toContain("accurio-saddle-booklet-maker");
   });
@@ -445,6 +455,8 @@ describe("PR Booklet Maker sheet-count cap", () => {
     expect(plan.recommended.inlineBooklet).toBe(true);
     expect(plan.finishing.map((s) => s.machineId)).toContain("xerox-pr-booklet-maker-finisher");
     expect(plan.finishing.map((s) => s.machineId)).not.toContain("accurio-saddle-booklet-maker");
+    expect(plan.finishing.map((s) => s.machineId)).not.toContain("baumfolder-714");
+    expect(plan.finishing.map((s) => s.machineId)).not.toContain("stahl-folder");
   });
 
   it("over 30 sheets/book warns and falls back to offline Baum + Salco", () => {
@@ -453,6 +465,7 @@ describe("PR Booklet Maker sheet-count cap", () => {
     const ids = plan.finishing.map((s) => s.machineId);
     expect(ids).toContain("baumfolder-714");
     expect(ids).toContain("salco-rapid-106e");
+    expect(ids).not.toContain("stahl-folder");
     expect(ids).not.toContain("xerox-pr-booklet-maker-finisher");
     expect(ids).not.toContain("accurio-saddle-booklet-maker");
     expect(plan.warnings.join(" ")).toMatch(/30 sheets/i);
@@ -497,6 +510,7 @@ describe("mixed color saddle", () => {
     expect(ids).not.toContain("xerox-pr-booklet-maker-finisher");
     expect(ids).not.toContain("graphic-whizard-creasemaster-plus-ts");
     expect(ids).not.toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
     expect(ids).not.toContain("salco-rapid-106e");
     expect(autoDescription(plan.job)).toMatch(/color cover \/ B&W insides/);
     const ticket = [
@@ -513,6 +527,7 @@ describe("mixed color saddle", () => {
     expect(plan.why).toContain(MIXED_SADDLE_WHY);
     expect(plan.why.join(" ")).not.toMatch(/PR Booklet Maker/);
     expect(plan.why.join(" ")).not.toMatch(/Baumfolder 714/);
+    expect(plan.why.join(" ")).not.toMatch(/Stahl/);
     expect(plan.why.join(" ")).not.toMatch(/Salco Rapid 106E/);
   });
 
@@ -539,7 +554,9 @@ describe("Accurio in-line saddle sheet-count cap", () => {
     expect(plan.press.machineId).toBe("accurio-6120");
     expect(plan.recommended.inlineBooklet).toBeFalsy();
     const ids = plan.finishing.map((s) => s.machineId);
+    expect(ids).toContain("baumfolder-714");
     expect(ids).toContain("salco-rapid-106e");
+    expect(ids).not.toContain("stahl-folder");
     expect(ids).not.toContain("accurio-saddle-booklet-maker");
     expect(ids).not.toContain("xerox-pr-booklet-maker-finisher");
     expect(plan.warnings.join(" ")).toMatch(/20 sheets/i);
@@ -563,7 +580,9 @@ describe("Accurio in-line saddle sheet-count cap", () => {
     expect(plan.lines![0].press.machineId).toBe("versant-4100");
     expect(plan.lines![1].press.machineId).toBe("accurio-6120");
     const ids = plan.finishing.map((s) => s.machineId);
+    expect(ids).toContain("baumfolder-714");
     expect(ids).toContain("salco-rapid-106e");
+    expect(ids).not.toContain("stahl-folder");
     expect(ids).not.toContain("accurio-saddle-booklet-maker");
     expect(ids).not.toContain("xerox-pr-booklet-maker-finisher");
     expect(plan.why.join(" ")).not.toContain(MIXED_BOOKLET_WHY);
