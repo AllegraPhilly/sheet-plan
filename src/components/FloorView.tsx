@@ -43,6 +43,11 @@ export function FloorView() {
                 Planning max parent {m.maxParentIn.w}×{m.maxParentIn.h} in
               </p>
             )}
+            {m.kind === "folder" && m.maxSheetIn && (
+              <p className="mt-1 text-sm">
+                Max sheet {m.maxSheetIn.w}×{m.maxSheetIn.h} in
+              </p>
+            )}
             {m.id === "challenge-305-crt" && (
               <p className="mt-1 text-sm">
                 <TermLabel term="cutClick">Click</TermLabel> = one cut on this knife.

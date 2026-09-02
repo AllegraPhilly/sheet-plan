@@ -16,6 +16,10 @@ describe("glossary copy", () => {
     expect(GLOSSARY.gripper.def).toMatch(/0\.25 in/i);
     expect(GLOSSARY.trim.def).toMatch(/0\.125 in/i);
     expect(GLOSSARY.exactTile.def).toMatch(/8\.5×11 on 11×17/i);
+    expect(GLOSSARY.fold.def).toMatch(/Baumfolder 714/);
+    expect(GLOSSARY.fold.def).toMatch(/14×20/);
+    expect(GLOSSARY.fold.def).toMatch(/Stahl B20/);
+    expect(GLOSSARY.fold.def).not.toMatch(/8PG|right-angle/i);
     expect(GLOSSARY.saddle.def).toMatch(/not letter 2-up cut/i);
     expect(GLOSSARY.mixed.def).toMatch(/part color/i);
     expect(GLOSSARY.mixed.def).toMatch(/one Versant stack/i);

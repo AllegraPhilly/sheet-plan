@@ -5,6 +5,7 @@ import { parseJobText } from "./parse-job";
 import {
   ACCURIO_BOOKLET_MAX_SHEETS,
   PR_BOOKLET_MAX_SHEETS,
+  finishFitsInside,
   isCoverStock,
   isSaddleJob,
   mixedSaddleError,
@@ -86,6 +87,25 @@ export function choosePress(job: JobInput): { press: RouteStep; also: RouteStep[
   return { press, also };
 }
 
+/** Sheet that goes through the folder: saddle signature, else the cut finish. */
+export function foldSheetSize(job: JobInput, recommended: NestResult): { w: number; h: number } {
+  if (isSaddleJob(job)) {
+    if (recommended.signature) {
+      return { w: recommended.signature.w, h: recommended.signature.h };
+    }
+    return { w: recommended.parent.w, h: recommended.parent.h };
+  }
+  return { w: job.finishW, h: job.finishH };
+}
+
+/** Letters / mailers / sheets that fit 14×20 stay Baum. Bigger sheets → Stahl B20. */
+export function pickOfflineFolder(job: JobInput, recommended: NestResult): "baumfolder-714" | "stahl-folder" {
+  const sheet = foldSheetSize(job, recommended);
+  const baum = machineById("baumfolder-714")?.maxSheetIn ?? { w: 14, h: 20 };
+  if (finishFitsInside(sheet, baum)) return "baumfolder-714";
+  return "stahl-folder";
+}
+
 export function finishingSteps(job: JobInput, recommended: NestResult): RouteStep[] {
   const out: RouteStep[] = [];
   if (isSaddleJob(job)) {
@@ -126,7 +146,7 @@ export function finishingSteps(job: JobInput, recommended: NestResult): RouteSte
     if (job.color === "mixed" || isCoverStock(job)) {
       out.push(mustStep("graphic-whizard-creasemaster-plus-ts", "Crease cover stock before fold."));
     }
-    out.push(mustStep("baumfolder-714", "Fold: half (saddle signature)."));
+    out.push(mustStep(pickOfflineFolder(job, recommended), "Fold: half (saddle signature)."));
     out.push(mustStep("salco-rapid-106e", "Saddle stitch on the fold."));
     if (job.scannedOriginal) {
       out.unshift(mustStep("epson-expression-11000xl", "Scan original (tabloid flatbed)."));
@@ -142,7 +162,7 @@ export function finishingSteps(job: JobInput, recommended: NestResult): RouteSte
     if (job.stockHint && /cover|card|100#|80#c/.test(job.stockHint.toLowerCase())) {
       out.push(mustStep("graphic-whizard-creasemaster-plus-ts", "Crease before fold."));
     }
-    out.push(mustStep("baumfolder-714", `Fold: ${job.fold}.`));
+    out.push(mustStep(pickOfflineFolder(job, recommended), `Fold: ${job.fold}.`));
   }
   if (job.bind === "staple") {
     out.push(mustStep("salco-rapid-106e", "Corner staple, one upper-left (Salco Rapid 106E)."));
@@ -302,7 +322,8 @@ function saddleWhy(job: JobInput, recommended: NestResult, press: RouteStep): st
       `${recommended.impressions} duplex clicks on ${press.name} (one signature sheet = 4 pages).`,
     );
   }
-  why.push("Fold half on Baumfolder 714. Saddle stitch on Salco Rapid 106E.");
+  const folder = machineById(pickOfflineFolder(job, recommended));
+  why.push(`Fold half on ${folder?.name ?? "Baumfolder 714"}. Saddle stitch on Salco Rapid 106E.`);
   if (job.color === "mixed" || isCoverStock(job)) {
     why.push("Cover stock — crease on Graphic Whizard before fold.");
   }
@@ -451,7 +472,7 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
     const sheets = sheetsPerSaddleBooklet(job.pages);
     if (job.color === "color" && sheets > PR_BOOKLET_MAX_SHEETS) {
       warnings.push(
-        `PR Booklet Maker saddle-stitch cap is ${PR_BOOKLET_MAX_SHEETS} sheets/book (${sheets} sheets here). Offline Baumfolder 714 + Salco Rapid 106E.`,
+        `PR Booklet Maker saddle-stitch cap is ${PR_BOOKLET_MAX_SHEETS} sheets/book (${sheets} sheets here). Offline ${machineById(pickOfflineFolder(job, recommended))?.name ?? "Baumfolder 714"} + Salco Rapid 106E.`,
       );
     }
     if ((job.color === "bw" || job.color === "mixed") && sheets > ACCURIO_BOOKLET_MAX_SHEETS) {

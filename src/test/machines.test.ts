@@ -1,5 +1,18 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { CONFIDENT_IDS, FORBIDDEN_UI_STRINGS, MACHINES, confidentMachines, machineById } from "@/lib/machines";
+
+function walkSrc(dir: string): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const full = join(dir, name);
+    const st = statSync(full);
+    if (st.isDirectory()) out.push(...walkSrc(full));
+    else if (/\.(ts|tsx|js|mjs|css|md|json)$/i.test(name)) out.push(full);
+  }
+  return out;
+}
 
 describe("floor catalog", () => {
   it("includes every required confident id", () => {
@@ -57,9 +70,58 @@ describe("floor catalog", () => {
     const cut = machineById("challenge-305-crt")!;
     expect(cut.floorFacts?.join(" ")).toMatch(/30\.5/);
     expect(cut.floorFacts?.join(" ")).toMatch(/3\.5/);
+    expect(cut.floorFacts?.join(" ")).toMatch(/97116F/);
     const vinyl = machineById("summa-s2t140")!;
     expect(vinyl.kind).toBe("vinyl");
     expect(vinyl.notes.join(" ")).toMatch(/not a paper/i);
+  });
+
+  it("Baumfolder 714 is tabletop air-feed, 14×20, serial 86-B-235, USPS fold-mailer only", () => {
+    const baum = machineById("baumfolder-714")!;
+    expect(baum.confidence).toBe("confident");
+    expect(baum.kind).toBe("folder");
+    expect(baum.role).toMatch(/tabletop air-feed/i);
+    expect(baum.maxSheetIn).toEqual({ w: 14, h: 20 });
+    expect(JSON.stringify(baum)).toMatch(/86-B-235/);
+    expect(baum.notes.join(" ")).toMatch(/fold-mailer/i);
+    expect(baum.notes.join(" ")).toMatch(/letter/i);
+    expect(JSON.stringify(baum).toLowerCase()).not.toMatch(/glue kit/);
+  });
+
+  it("Stahl 1220B-4-P-3 is confident pile-feed buckle folder, 20×33, serial 120LG0087", () => {
+    const stahl = machineById("stahl-folder")!;
+    expect(CONFIDENT_IDS).toContain("stahl-folder");
+    expect(stahl.confidence).toBe("confident");
+    expect(stahl.kind).toBe("folder");
+    expect(stahl.name).toMatch(/1220B-4-P-3/);
+    expect(stahl.name).toMatch(/Stahlfolder B20/);
+    expect(stahl.role).toMatch(/pile-feed buckle folder/i);
+    expect(stahl.maxSheetIn).toEqual({ w: 20, h: 33 });
+    expect(JSON.stringify(stahl)).toMatch(/120LG0087/);
+    const notes = stahl.notes.join(" ");
+    expect(notes).toMatch(/do not assign fold-mailer/i);
+    expect(notes).toMatch(/do not assume an 8-page right-angle/i);
+    expect(notes).toMatch(/8PG/);
+    expect(notes).toMatch(/4 buckle plates/i);
+    expect(notes).not.toMatch(/fold-mailer stays on Stahl|assign fold-mailer to Stahl/i);
+    expect(JSON.stringify(MACHINES)).not.toMatch(/SD-510|SD-513|SD-506|PI-502/i);
+  });
+
+  it("does not claim an 8-page right-angle / 8PG unit as installed", () => {
+    const blob = JSON.stringify(MACHINES);
+    expect(blob).not.toMatch(/8PG (installed|on the floor|equipped)/i);
+    expect(blob).not.toMatch(/right-angle unit is installed/i);
+    expect(machineById("stahl-folder")!.notes.join(" ")).toMatch(/until a second plate/i);
+  });
+
+  it("wrong Baum serial is gone from the repo", () => {
+    const srcRoot = new URL("..", import.meta.url).pathname;
+    const files = walkSrc(srcRoot);
+    const wrong = /88[.\-]B[.\-]233/;
+    for (const file of files) {
+      const text = readFileSync(file, "utf8");
+      expect(text, file).not.toMatch(wrong);
+    }
   });
 
   it("MAILBOT is skip / email only", () => {
