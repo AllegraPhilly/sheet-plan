@@ -4,6 +4,9 @@ import { isClassicLetterTabloid, nestOnParent, rankParents } from "./nest";
 import { parseJobText } from "./parse-job";
 import {
   ACCURIO_BOOKLET_MAX_SHEETS,
+  ACCURIO_TOP_FEEDER_MAX_QTY,
+  ACCURIO_TRAY_MAX,
+  INLINE_FOLD_BOOK,
   PR_BOOKLET_MAX_SHEETS,
   finishFitsInside,
   isCoverStock,
@@ -106,6 +109,34 @@ export function pickOfflineFolder(job: JobInput, recommended: NestResult): "baum
   return "stahl-folder";
 }
 
+const TABLOID_SHEET = { w: 11, h: 17 };
+
+/**
+ * Fold sheet (finish, or saddle signature) fits Accurio when it is inside the
+ * 8.5×11 book / 11×17 in-line window, or tray max 12.76×18.23 (do not assume PF-710).
+ */
+export function foldSheetFitsAccurioTopFeeder(job: JobInput, recommended: NestResult): boolean {
+  const sheet = foldSheetSize(job, recommended);
+  const tray = machineById("accurio-top-feeder")?.maxSheetIn ?? ACCURIO_TRAY_MAX;
+  return (
+    finishFitsInside(sheet, INLINE_FOLD_BOOK) ||
+    finishFitsInside(sheet, TABLOID_SHEET) ||
+    finishFitsInside(sheet, tray)
+  );
+}
+
+/**
+ * Fold-only paper jobs: already-printed sheets, job qty ≤ 50 pieces, sheet fits Accurio.
+ * Not saddle (in-line or overflow). Not USPS fold-mailer.
+ */
+export function canAccurioTopFeederFold(job: JobInput, recommended: NestResult): boolean {
+  if (job.substrate !== "paper") return false;
+  if (isSaddleJob(job)) return false;
+  if (!job.fold || job.fold === "none") return false;
+  if (!Number.isFinite(job.qty) || job.qty > ACCURIO_TOP_FEEDER_MAX_QTY) return false;
+  return foldSheetFitsAccurioTopFeeder(job, recommended);
+}
+
 export function finishingSteps(job: JobInput, recommended: NestResult): RouteStep[] {
   const out: RouteStep[] = [];
   if (isSaddleJob(job)) {
@@ -162,7 +193,11 @@ export function finishingSteps(job: JobInput, recommended: NestResult): RouteSte
     if (job.stockHint && /cover|card|100#|80#c/.test(job.stockHint.toLowerCase())) {
       out.push(mustStep("graphic-whizard-creasemaster-plus-ts", "Crease before fold."));
     }
-    out.push(mustStep(pickOfflineFolder(job, recommended), `Fold: ${job.fold}.`));
+    if (canAccurioTopFeederFold(job, recommended)) {
+      out.push(mustStep("accurio-top-feeder", "Fold from the unit top feeder (no click)."));
+    } else {
+      out.push(mustStep(pickOfflineFolder(job, recommended), `Fold: ${job.fold}.`));
+    }
   }
   if (job.bind === "staple") {
     out.push(mustStep("salco-rapid-106e", "Corner staple, one upper-left (Salco Rapid 106E)."));
@@ -458,6 +493,9 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
     }
   } else {
     why.push(`Non-paper substrate (${job.substrate}) — no parent sheet buy.`);
+  }
+  if (finishing.some((s) => s.machineId === "accurio-top-feeder")) {
+    why.push("Fold from the unit top feeder (no click).");
   }
 
   const warnings: string[] = [];

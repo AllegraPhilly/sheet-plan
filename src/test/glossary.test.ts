@@ -19,7 +19,14 @@ describe("glossary copy", () => {
     expect(GLOSSARY.fold.def).toMatch(/Baumfolder 714/);
     expect(GLOSSARY.fold.def).toMatch(/14×20/);
     expect(GLOSSARY.fold.def).toMatch(/Stahl B20/);
+    expect(GLOSSARY.fold.def).toMatch(/unit top feeder/);
+    expect(GLOSSARY.fold.def).toMatch(/no click/);
+    expect(GLOSSARY.fold.def).toMatch(/qty ≤ 50/);
+    expect(GLOSSARY.fold.def).toMatch(/1–5 sheets per set/);
+    expect(GLOSSARY.fold.def).toMatch(/1–3/);
+    expect(GLOSSARY.fold.def).not.toMatch(/50 sheets/);
     expect(GLOSSARY.fold.def).not.toMatch(/8PG|right-angle/i);
+    expect(GLOSSARY.fold.def).not.toMatch(/PI-502|SD-510/i);
     expect(GLOSSARY.saddle.def).toMatch(/not letter 2-up cut/i);
     expect(GLOSSARY.mixed.def).toMatch(/part color/i);
     expect(GLOSSARY.mixed.def).toMatch(/one Versant stack/i);

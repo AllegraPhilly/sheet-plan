@@ -301,27 +301,38 @@ describe("any typed finish is a real gang", () => {
 
 describe("offline folder routing", () => {
   it("letter 8.5×11 half-fold stays Baumfolder 714, not Stahl", () => {
-    const plan = planFromJob(letterJob({ fold: "half", description: "200 color 8.5x11 half fold" }));
-    const ids = plan.finishing.map((s) => s.machineId);
-    expect(ids).toContain("baumfolder-714");
-    expect(ids).not.toContain("stahl-folder");
-    expect(pickOfflineFolder(plan.job, plan.recommended)).toBe("baumfolder-714");
-  });
-
-  it("letter-size Z fold stays Baum, not Stahl", () => {
-    const plan = planFromJob(letterJob({ fold: "z", description: "200 color 8.5x11 Z fold" }));
-    const ids = plan.finishing.map((s) => s.machineId);
-    expect(ids).toContain("baumfolder-714");
-    expect(ids).not.toContain("stahl-folder");
-  });
-
-  it("11×17 half-fold still fits Baum 14×20", () => {
     const plan = planFromJob(
-      letterJob({ finishW: 11, finishH: 17, fold: "half", description: "50 color 11x17 half fold" }),
+      letterJob({ qty: 200, fold: "half", description: "200 color 8.5x11 half fold" }),
     );
     const ids = plan.finishing.map((s) => s.machineId);
     expect(ids).toContain("baumfolder-714");
     expect(ids).not.toContain("stahl-folder");
+    expect(ids).not.toContain("accurio-top-feeder");
+    expect(pickOfflineFolder(plan.job, plan.recommended)).toBe("baumfolder-714");
+  });
+
+  it("letter-size Z fold stays Baum, not Stahl", () => {
+    const plan = planFromJob(letterJob({ qty: 200, fold: "z", description: "200 color 8.5x11 Z fold" }));
+    const ids = plan.finishing.map((s) => s.machineId);
+    expect(ids).toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
+    expect(ids).not.toContain("accurio-top-feeder");
+  });
+
+  it("11×17 half-fold still fits Baum 14×20 when job qty is over 50", () => {
+    const plan = planFromJob(
+      letterJob({
+        qty: 200,
+        finishW: 11,
+        finishH: 17,
+        fold: "half",
+        description: "200 color 11x17 half fold",
+      }),
+    );
+    const ids = plan.finishing.map((s) => s.machineId);
+    expect(ids).toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
+    expect(ids).not.toContain("accurio-top-feeder");
   });
 
   it("a fold whose finish exceeds 14×20 uses Stahl B20, not Baum", () => {
@@ -337,6 +348,7 @@ describe("offline folder routing", () => {
     const ids = plan.finishing.map((s) => s.machineId);
     expect(ids).toContain("stahl-folder");
     expect(ids).not.toContain("baumfolder-714");
+    expect(ids).not.toContain("accurio-top-feeder");
   });
 
   it("finishingSteps with a parent/sheet over 14×20 uses Stahl, not Baum", () => {
@@ -345,12 +357,88 @@ describe("offline folder routing", () => {
       ...nest,
       parent: { ...nest.parent, label: "20×26", w: 20, h: 26 },
     };
-    const job = letterJob({ finishW: 20, finishH: 26, fold: "half", description: "10 color 20x26 half fold" });
+    const job = letterJob({
+      qty: 10,
+      finishW: 20,
+      finishH: 26,
+      fold: "half",
+      description: "10 color 20x26 half fold",
+    });
     const steps = finishingSteps(job, big);
     const ids = steps.map((s) => s.machineId);
     expect(ids).toContain("stahl-folder");
     expect(ids).not.toContain("baumfolder-714");
+    expect(ids).not.toContain("accurio-top-feeder");
     expect(pickOfflineFolder(job, big)).toBe("stahl-folder");
+  });
+});
+
+describe("Accurio unit top feeder fold-only", () => {
+  it("25 color 8.5×11 half-fold uses the unit top feeder, not Baum or Stahl", () => {
+    const unfolded = planFromJob(
+      letterJob({ qty: 25, fold: "none", description: "25 color 8.5x11" }),
+    );
+    const plan = planFromJob(
+      letterJob({ qty: 25, fold: "half", description: "25 color 8.5x11 half fold" }),
+    );
+    const ids = plan.finishing.map((s) => s.machineId);
+    expect(plan.press.machineId).toBe("versant-4100");
+    expect(ids).toContain("accurio-top-feeder");
+    expect(ids).not.toContain("baumfolder-714");
+    expect(ids).not.toContain("stahl-folder");
+    expect(plan.finishing.find((s) => s.machineId === "accurio-top-feeder")?.action).toMatch(
+      /Fold from the unit top feeder \(no click\)/,
+    );
+    expect(plan.why.join(" ")).toMatch(/no click/i);
+    expect(plan.why.join(" ")).toMatch(/top feeder/i);
+    expect(plan.recommended.impressions).toBe(unfolded.recommended.impressions);
+    expect(`${plan.why.join(" ")} ${plan.finishing.map((s) => s.action).join(" ")}`).not.toMatch(
+      /50 sheets/,
+    );
+    expect(JSON.stringify(plan)).not.toMatch(/PI-502|SD-510/i);
+  });
+
+  it("200 color 8.5×11 half-fold stays Baum, not Accurio top feeder", () => {
+    const plan = planFromJob(
+      letterJob({ qty: 200, fold: "half", description: "200 color 8.5x11 half fold" }),
+    );
+    const ids = plan.finishing.map((s) => s.machineId);
+    expect(plan.job.qty).toBe(200);
+    expect(plan.press.machineId).toBe("versant-4100");
+    expect(ids).toContain("baumfolder-714");
+    expect(ids).not.toContain("accurio-top-feeder");
+    expect(ids).not.toContain("stahl-folder");
+  });
+
+  it("25 color 18×24 half-fold stays Stahl (does not fit Accurio or Baum)", () => {
+    const plan = planFromJob(
+      letterJob({
+        qty: 25,
+        finishW: 18,
+        finishH: 24,
+        fold: "half",
+        description: "25 color 18x24 half fold",
+      }),
+    );
+    const ids = plan.finishing.map((s) => s.machineId);
+    expect(ids).toContain("stahl-folder");
+    expect(ids).not.toContain("accurio-top-feeder");
+    expect(ids).not.toContain("baumfolder-714");
+  });
+
+  it("job qty 50 pieces still uses the top feeder; 51 stays Baum", () => {
+    const atCap = planFromJob(
+      letterJob({ qty: 50, fold: "half", description: "50 color 8.5x11 half fold" }),
+    );
+    const over = planFromJob(
+      letterJob({ qty: 51, fold: "half", description: "51 color 8.5x11 half fold" }),
+    );
+    expect(atCap.job.qty).toBe(50);
+    expect(atCap.finishing.map((s) => s.machineId)).toContain("accurio-top-feeder");
+    expect(atCap.finishing.map((s) => s.machineId)).not.toContain("baumfolder-714");
+    expect(over.job.qty).toBe(51);
+    expect(over.finishing.map((s) => s.machineId)).toContain("baumfolder-714");
+    expect(over.finishing.map((s) => s.machineId)).not.toContain("accurio-top-feeder");
   });
 });
 
