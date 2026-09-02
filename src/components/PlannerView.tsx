@@ -425,8 +425,9 @@ export function PlannerView() {
                 </select>
                 {(job.mixedSplit ?? "cover") === "cover" && (
                   <span className="mt-1 block text-xs font-normal opacity-70">
-                    Cover is 4 color pages, remaining pages B&W. Whole book prints on Versant 4100.
-                    Qty is books, not a color/B&W sheet split.
+                    {job.bind === "saddle"
+                      ? "Cover is 4 color pages, remaining pages B&W. Versant prints color cover shells; Accurio prints B&W insides and saddles in-line. Qty is books, not a color/B&W sheet split."
+                      : "Cover is 4 color pages, remaining pages B&W. Whole book prints on Versant 4100. Qty is books, not a color/B&W sheet split."}
                   </span>
                 )}
               </label>
@@ -756,9 +757,16 @@ function PlanCard({
           term="impressions"
           v={
             r
-              ? r.saddle
-                ? `${r.impressions} (duplex on ${r.parent.label})`
-                : `${r.impressions} (${r.nUp}-up click-save)`
+              ? plan.lines && plan.lines.length > 1 && r.saddle
+                ? plan.lines
+                    .map((line) => {
+                      const ink = line.role === "color" ? "color" : "B&W";
+                      return `${line.nest.impressions} ${ink} duplex on ${line.press.name}`;
+                    })
+                    .join("; ")
+                : r.saddle
+                  ? `${r.impressions} (duplex on ${r.parent.label})`
+                  : `${r.impressions} (${r.nUp}-up click-save)`
               : "—"
           }
         />

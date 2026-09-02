@@ -20,6 +20,8 @@ describe("glossary copy", () => {
     expect(GLOSSARY.mixed.def).toMatch(/part color/i);
     expect(GLOSSARY.mixed.def).toMatch(/one Versant stack/i);
     expect(GLOSSARY.mixed.def).toMatch(/too much handling/i);
+    expect(GLOSSARY.mixed.def).toMatch(/not all on Versant/i);
+    expect(GLOSSARY.saddle.def).toMatch(/AccurioPress 6120 in-line saddle/i);
     expect(GLOSSARY.size.def).toMatch(/not a whitelist/i);
     expect(GLOSSARY.substrate.def).toMatch(/paper, envelope, vinyl, garment, UV/i);
     expect(GLOSSARY.internal.def).toMatch(/not a customer site/i);
@@ -40,6 +42,7 @@ describe("glossary copy", () => {
     expect(blob).not.toContain("allegraphilly.com");
     expect(blob).not.toContain("fiery");
     expect(blob).not.toContain("vercel");
+    expect(blob).not.toMatch(/sd-510|sd-513|sd-506|pi-502/);
   });
 
   it("aria labels stay short What-is questions", () => {

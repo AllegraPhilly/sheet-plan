@@ -146,6 +146,7 @@ describe("B) mixed packs — cover/insides, never a qty split", () => {
     const ui = readFileSync(new URL("../components/PlannerView.tsx", import.meta.url), "utf8");
     expect(ui).toMatch(/Cover color, insides B&W/);
     expect(ui).toMatch(/Whole book prints on Versant 4100/);
+    expect(ui).toMatch(/Accurio prints B&W insides and saddles in-line/);
     expect(ui).not.toMatch(/Remaining pages B&W on Accurio/);
     expect(ui).toMatch(/isMixedFlatBind\(job\.bind\)/);
     expect(ui).toMatch(/function MixedQty/);
