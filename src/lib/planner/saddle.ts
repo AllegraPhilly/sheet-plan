@@ -15,11 +15,15 @@ export const SADDLE_NO_PARENT_ERROR = "No shop parent fits that saddle signature
 
 /** Xerox PR Booklet Maker Finisher saddle-stitch cap (Colotech+ 90 uncoated). */
 export const PR_BOOKLET_MAX_SHEETS = 30;
+/** Accurio in-line saddle cap until a module plate is on file. */
+export const ACCURIO_BOOKLET_MAX_SHEETS = 20;
 /** Booklet sheet window (Xerox KB0400109). A raw 10×7 signature does not fit. */
 export const PR_BOOKLET_MIN_SHEET = { w: 7.17, h: 10.12 };
 export const PR_BOOKLET_MAX_SHEET = { w: 13, h: 19.2 };
 /** 11×17 in-line folds to this book. Smaller finish face-trims after. */
 export const INLINE_FOLD_BOOK = { w: 8.5, h: 11 };
+
+export type InlineBookletOn = "versant" | "accurio";
 
 export function isSaddleJob(job: Pick<JobInput, "bind">): boolean {
   return job.bind === "saddle";
@@ -66,18 +70,37 @@ export function needsInlineFaceTrim(job: Pick<JobInput, "finishW" | "finishH">):
   return !dimsMatch({ w: job.finishW, h: job.finishH }, INLINE_FOLD_BOOK);
 }
 
+function inlineFinishFits(job: JobInput): boolean {
+  if (!isSaddleJob(job)) return false;
+  if (job.substrate !== "paper") return false;
+  if (!saddlePagesOk(job.pages)) return false;
+  return finishFitsInside({ w: job.finishW, h: job.finishH }, INLINE_FOLD_BOOK);
+}
+
 /**
- * Color / mixed paper saddle that fits the Versant PR Booklet Maker.
- * B&W stays Accurio + Salco. Over 30 sheets/book is offline.
+ * All-color paper saddle that fits the Versant PR Booklet Maker.
+ * B&W and mixed-with-B&W insides stay Accurio in-line. Over 30 sheets/book is offline.
  * Parent is always 11×17 1-up — a raw 10×7 signature cannot feed the finisher.
  */
 export function canInlineVersantBooklet(job: JobInput): boolean {
-  if (!isSaddleJob(job)) return false;
-  if (job.substrate !== "paper") return false;
+  if (!inlineFinishFits(job)) return false;
   if (job.color === "bw") return false;
-  if (!saddlePagesOk(job.pages)) return false;
-  if (sheetsPerSaddleBooklet(job.pages) > PR_BOOKLET_MAX_SHEETS) return false;
-  return finishFitsInside({ w: job.finishW, h: job.finishH }, INLINE_FOLD_BOOK);
+  if (job.color === "mixed" && (job.bwPages ?? 0) > 0) return false;
+  if (sheetsPerSaddleBooklet(job.pages!) > PR_BOOKLET_MAX_SHEETS) return false;
+  return true;
+}
+
+/**
+ * B&W or mixed (color cover / B&W insides) paper saddle on Accurio in-line.
+ * All-color stays Versant PR. Over 20 sheets/book is Salco overflow.
+ * Same 11×17 1-up signature as Versant in-line. Do not pick 12×18.
+ */
+export function canInlineAccurioBooklet(job: JobInput): boolean {
+  if (!inlineFinishFits(job)) return false;
+  if (job.color === "color") return false;
+  if (job.color === "mixed" && (job.bwPages ?? 0) === 0) return false;
+  if (sheetsPerSaddleBooklet(job.pages!) > ACCURIO_BOOKLET_MAX_SHEETS) return false;
+  return true;
 }
 
 /** Double one finish dimension — portrait W×H (5×7) becomes 10×7. */
@@ -172,7 +195,7 @@ function stampSaddle(
   };
 }
 
-export function nestInlineVersantBooklet(job: JobInput): NestResult {
+export function nestInlineBooklet(job: JobInput, on: InlineBookletOn): NestResult {
   const pages = job.pages;
   if (!saddlePagesOk(pages)) {
     throw new Error(SADDLE_PAGES_ERROR);
@@ -207,6 +230,7 @@ export function nestInlineVersantBooklet(job: JobInput): NestResult {
     rows: 1,
     saddle: true,
     inlineBooklet: true,
+    inlineBookletOn: on,
     inlineFaceTrim: faceTrim,
     signature: sig,
     sheetsToBuy: signatures,
@@ -221,6 +245,11 @@ export function nestInlineVersantBooklet(job: JobInput): NestResult {
       brief: faceTrim ? "0 splits, 1 face trim" : "0 splits, no face trim",
     },
   };
+}
+
+/** Color in-line path — 11×17 1-up through the Versant PR Booklet Maker. */
+export function nestInlineVersantBooklet(job: JobInput): NestResult {
+  return nestInlineBooklet(job, "versant");
 }
 
 export function saddleAlternatives(job: JobInput, recommended: NestResult): NestResult[] {
@@ -257,7 +286,7 @@ function pickSignatureNest(job: JobInput, signatures: number): NestResult {
   return cands[0];
 }
 
-/** Color/mixed that fit: 11×17 1-up through the PR Booklet Maker. Else cheapest signature nest. */
+/** Color → Versant PR; B&W/mixed → Accurio in-line when under cap. Else cheapest signature nest. */
 export function nestSaddle(job: JobInput): NestResult {
   const pages = job.pages;
   if (!saddlePagesOk(pages)) {
@@ -266,7 +295,10 @@ export function nestSaddle(job: JobInput): NestResult {
   const mixedErr = mixedSaddleError(job);
   if (mixedErr) throw new Error(mixedErr);
   if (canInlineVersantBooklet(job)) {
-    return nestInlineVersantBooklet(job);
+    return nestInlineBooklet(job, "versant");
+  }
+  if (canInlineAccurioBooklet(job)) {
+    return nestInlineBooklet(job, "accurio");
   }
   return pickSignatureNest(job, signatureQty(job, pages));
 }

@@ -44,11 +44,11 @@ export const GLOSSARY = {
   },
   saddle: {
     label: "saddle booklet",
-    def: "One fold, 4 pages per signature sheet. Color/mixed that fit: 11×17 1-up, fold and saddle in the Xerox PR Booklet Maker Finisher. Not letter 2-up cut on the Challenge.",
+    def: "One fold, 4 pages per signature sheet. Color that fits: 11×17 1-up, fold and saddle in the Xerox PR Booklet Maker Finisher. B&W and mixed that fit: AccurioPress 6120 in-line saddle (11×17). Not letter 2-up cut on the Challenge.",
   },
   mixed: {
     label: "mixed",
-    def: "Part color, part B&W. Flats: Qty is the total; color qty fills B&W as you type (two stacks: Versant + Accurio — separate jobs). Booklets and stapled/coil packs: cover color + B&W insides describes the job; PLAN is one Versant stack. Don’t split cover/insides across presses (too much handling). Saddle custom splits stay ÷4. Color/mixed saddle that fits folds and saddles in the Xerox PR Booklet Maker Finisher; offline Baum + Salco only when it cannot go in-line.",
+    def: "Part color, part B&W. Flats: Qty is the total; color qty fills B&W as you type (two stacks: Versant + Accurio — separate jobs). Stapled/coil packs: cover color + B&W insides describes the job; PLAN is one Versant stack. Don’t split cover/insides across presses (too much handling). Mixed saddles: Versant prints color cover shells; Accurio prints B&W insides and saddles in-line — not all on Versant. Saddle custom splits stay ÷4. All-color saddle that fits folds and saddles in the Xerox PR Booklet Maker Finisher; B&W/mixed in-line Accurio when under 20 sheets/book; offline Baum + Salco only when it cannot go in-line.",
   },
   size: {
     label: "size",

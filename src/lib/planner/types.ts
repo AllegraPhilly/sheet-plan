@@ -64,8 +64,10 @@ export type NestResult = {
   trimApplied: boolean;
   /** Folded signature — not a 2-up letter cut of the finish. */
   saddle?: boolean;
-  /** Versant PR Booklet Maker path — 11×17 1-up through the in-line finisher. */
+  /** In-line booklet path — 11×17 1-up through Versant PR or Accurio saddle. */
   inlineBooklet?: boolean;
+  /** Which in-line booklet maker. Color → versant; B&W / mixed → accurio. */
+  inlineBookletOn?: "versant" | "accurio";
   /** Face-trim the bound 8.5×11 book to finish after the in-line fold. */
   inlineFaceTrim?: boolean;
   /** Open signature sheet (2× finish in one dimension). */
@@ -107,7 +109,7 @@ export type ProductionPlan = {
   recommended: NestResult;
   alternatives: NestResult[];
   press: RouteStep;
-  /** Mixed flats only: Versant color qty + Accurio B&W qty. Booklets do not split presses. */
+  /** Mixed flats and mixed saddles: Versant color + Accurio B&W. Mixed packs stay one stack. */
   lines?: PressLine[];
   finishing: RouteStep[];
   alsoConsider: RouteStep[];

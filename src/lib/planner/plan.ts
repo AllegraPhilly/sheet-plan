@@ -3,11 +3,14 @@ import { emptyCuts } from "./cut-count";
 import { isClassicLetterTabloid, nestOnParent, rankParents } from "./nest";
 import { parseJobText } from "./parse-job";
 import {
+  ACCURIO_BOOKLET_MAX_SHEETS,
   PR_BOOKLET_MAX_SHEETS,
   isCoverStock,
   isSaddleJob,
   mixedSaddleError,
+  nestInlineBooklet,
   nestSaddle,
+  nestSaddleForPages,
   saddleAlternatives,
   saddlePageError,
   saddlePagesOk,
@@ -87,12 +90,21 @@ export function finishingSteps(job: JobInput, recommended: NestResult): RouteSte
   const out: RouteStep[] = [];
   if (isSaddleJob(job)) {
     if (recommended.inlineBooklet) {
-      out.push(
-        mustStep(
-          "xerox-pr-booklet-maker-finisher",
-          "Fold and saddle-staple in-line on the Versant 4100.",
-        ),
-      );
+      if (recommended.inlineBookletOn === "accurio") {
+        out.push(
+          mustStep(
+            "accurio-saddle-booklet-maker",
+            "Fold and saddle-staple in-line on the AccurioPress 6120.",
+          ),
+        );
+      } else {
+        out.push(
+          mustStep(
+            "xerox-pr-booklet-maker-finisher",
+            "Fold and saddle-staple in-line on the Versant 4100.",
+          ),
+        );
+      }
       if (recommended.inlineFaceTrim) {
         out.push(
           mustStep(
@@ -185,25 +197,90 @@ function paperNest(job: JobInput): NestResult {
   return rankParents(job)[0] ?? fallbackNest(job);
 }
 
-/** Why mixed booklets stay one Versant stack — moving paper between presses costs too much time. */
+/** Why mixed packs stay one Versant stack — moving paper between presses costs too much time. */
 export const MIXED_BOOKLET_WHY =
   "All on Versant 4100 — don’t split cover/insides across presses (too much handling).";
 
-/** Mixed booklet / pack: one Versant line for the whole book. Accurio does not run this ticket. */
+/** Mixed saddle: Versant color shells + Accurio B&W insides + Accurio in-line saddle. */
+export const MIXED_SADDLE_WHY =
+  "Versant prints color cover shells; load those sheets in Accurio trays. Accurio prints black on B&W signatures, then fold and saddle in-line.";
+
+/** Mixed pack: one Versant line for the whole book. Accurio does not run this ticket. */
 export function mixedBookletPress(): RouteStep {
   return mustStep("versant-4100", MIXED_BOOKLET_WHY);
 }
 
+function mixedSaddleSheetCounts(job: JobInput): { color: number; bw: number } {
+  const qty = Number.isFinite(job.qty) && job.qty > 0 ? job.qty : 1;
+  const colorPages = job.colorPages ?? 0;
+  const bwPages = job.bwPages ?? 0;
+  return {
+    color: saddlePagesOk(colorPages) ? sheetsPerSaddleBooklet(colorPages) * qty : 0,
+    bw: saddlePagesOk(bwPages) ? sheetsPerSaddleBooklet(bwPages) * qty : 0,
+  };
+}
+
+function mixedSaddleLines(job: JobInput, recommended: NestResult): PressLine[] {
+  const colorPages = job.colorPages ?? 0;
+  const bwPages = job.bwPages ?? 0;
+  const on = recommended.inlineBookletOn ?? (recommended.inlineBooklet ? "accurio" : undefined);
+  const built: PressLine[] = [];
+  if (colorPages > 0 && saddlePagesOk(colorPages)) {
+    const colorJob: JobInput = { ...job, pages: colorPages, color: "color" };
+    const nest =
+      recommended.inlineBooklet && on
+        ? nestInlineBooklet(colorJob, on)
+        : nestSaddleForPages(colorJob, colorPages);
+    built.push({
+      role: "color",
+      press: mustStep("versant-4100", "Print color cover shells (color clicks on cover signatures only)."),
+      nest,
+    });
+  }
+  if (bwPages > 0 && saddlePagesOk(bwPages)) {
+    const bwJob: JobInput = { ...job, pages: bwPages, color: "bw" };
+    const nest =
+      recommended.inlineBooklet && on
+        ? nestInlineBooklet(bwJob, on)
+        : nestSaddleForPages(bwJob, bwPages);
+    built.push({
+      role: "bw",
+      press: mustStep(
+        "accurio-6120",
+        recommended.inlineBooklet
+          ? "Print black on B&W signatures (B&W clicks), then in-line saddle."
+          : "Print black on B&W signatures (B&W clicks).",
+      ),
+      nest,
+    });
+  }
+  return built;
+}
+
 function saddleWhy(job: JobInput, recommended: NestResult, press: RouteStep): string[] {
   if (recommended.inlineBooklet) {
+    if (job.color === "mixed") {
+      const sheets = mixedSaddleSheetCounts(job);
+      const why = [
+        MIXED_SADDLE_WHY,
+        `Buy ${recommended.sheetsToBuy} parent ${recommended.parent.label} (${sheets.color} color cover shells on Versant 4100 + ${sheets.bw} B&W inside sheets on AccurioPress 6120). Fold and saddle in-line on Accurio.`,
+        `${sheets.color * 2} color duplex clicks on Versant 4100 (cover signatures only). ${sheets.bw * 2} B&W duplex clicks on AccurioPress 6120 (body signatures).`,
+      ];
+      if (recommended.inlineFaceTrim) {
+        why.push(`Face-trim 8.5×11 to ${job.finishW}×${job.finishH} on Challenge 305 CRT.`);
+      }
+      return why;
+    }
+    const pressName = recommended.inlineBookletOn === "accurio" ? "AccurioPress 6120" : "Versant 4100";
+    const finisher =
+      recommended.inlineBookletOn === "accurio"
+        ? "AccurioPress 6120 in-line saddle / booklet maker"
+        : "Xerox PR Booklet Maker Finisher";
     const why = [
-      `${recommended.sheetsToBuy} sheets ${recommended.parent.label} on Versant 4100. Fold and saddle in the Xerox PR Booklet Maker Finisher.`,
+      `${recommended.sheetsToBuy} sheets ${recommended.parent.label} on ${pressName}. Fold and saddle in the ${finisher}.`,
     ];
     if (recommended.inlineFaceTrim) {
       why.push(`Face-trim 8.5×11 to ${job.finishW}×${job.finishH} on Challenge 305 CRT.`);
-    }
-    if (job.color === "mixed") {
-      why.push(MIXED_BOOKLET_WHY);
     }
     return why;
   }
@@ -216,11 +293,15 @@ function saddleWhy(job: JobInput, recommended: NestResult, press: RouteStep): st
     `Buy ${recommended.sheetsToBuy} parent ${recommended.parent.label} (${pages} pages ÷ 4 = ${sigsEach} signatures each × ${job.qty} booklets). ${sigLabel} signature, ${recommended.nUp}-up on the parent. Folded signature, not 8.5×11 2-up cut on the Challenge.`,
   );
   if (job.color === "mixed") {
-    why.push(MIXED_BOOKLET_WHY);
+    const sheets = mixedSaddleSheetCounts(job);
+    why.push(
+      `Versant prints color cover shells (${sheets.color} sheets, ${sheets.color * 2} color duplex clicks). Accurio prints black on B&W insides (${sheets.bw} sheets, ${sheets.bw * 2} B&W duplex clicks). Not all on Versant.`,
+    );
+  } else {
+    why.push(
+      `${recommended.impressions} duplex clicks on ${press.name} (one signature sheet = 4 pages).`,
+    );
   }
-  why.push(
-    `${recommended.impressions} duplex clicks on ${press.name} (one signature sheet = 4 pages).`,
-  );
   why.push("Fold half on Baumfolder 714. Saddle stitch on Salco Rapid 106E.");
   if (job.color === "mixed" || isCoverStock(job)) {
     why.push("Cover stock — crease on Graphic Whizard before fold.");
@@ -283,7 +364,13 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
     recommended = nestSaddle(job);
     alternatives = saddleAlternatives(job, recommended);
     if (job.color === "mixed") {
-      press = mixedBookletPress();
+      const built = mixedSaddleLines(job, recommended);
+      if (built.length > 0) {
+        lines = built;
+        press = built[0].press;
+      } else {
+        press = pressForPath("color");
+      }
       also = [];
     } else if (job.color === "bw") {
       const chosen = choosePress({ ...job, color: "bw" });
@@ -360,18 +447,18 @@ export function buildPlan(job: JobInput, parsedFrom: ProductionPlan["parsedFrom"
   ) {
     warnings.push("Parent exceeds Versant planning max 13×19.2 in.");
   }
-  if (
-    isSaddleJob(job) &&
-    job.substrate === "paper" &&
-    job.color !== "bw" &&
-    !recommended.inlineBooklet &&
-    saddlePagesOk(job.pages) &&
-    sheetsPerSaddleBooklet(job.pages) > PR_BOOKLET_MAX_SHEETS
-  ) {
+  if (isSaddleJob(job) && job.substrate === "paper" && !recommended.inlineBooklet && saddlePagesOk(job.pages)) {
     const sheets = sheetsPerSaddleBooklet(job.pages);
-    warnings.push(
-      `PR Booklet Maker saddle-stitch cap is ${PR_BOOKLET_MAX_SHEETS} sheets/book (${sheets} sheets here). Offline Baumfolder 714 + Salco Rapid 106E.`,
-    );
+    if (job.color === "color" && sheets > PR_BOOKLET_MAX_SHEETS) {
+      warnings.push(
+        `PR Booklet Maker saddle-stitch cap is ${PR_BOOKLET_MAX_SHEETS} sheets/book (${sheets} sheets here). Offline Baumfolder 714 + Salco Rapid 106E.`,
+      );
+    }
+    if ((job.color === "bw" || job.color === "mixed") && sheets > ACCURIO_BOOKLET_MAX_SHEETS) {
+      warnings.push(
+        `Accurio in-line saddle cap is ${ACCURIO_BOOKLET_MAX_SHEETS} sheets/book (${sheets} sheets here). Overflow Salco Rapid 106E.`,
+      );
+    }
   }
 
   const routeIds = [press, ...finishing, ...also, ...(lines ?? []).map((l) => l.press)].map((s) => s.machineId);
